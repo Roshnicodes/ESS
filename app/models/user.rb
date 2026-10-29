@@ -54,7 +54,7 @@ class User < ApplicationRecord
     return @tour_approver if defined?(@tour_approver)
     @tour_approver = hr? || admin? ||
       User.active.where(reporting_manager_id: id).or(User.active.where(l2_manager_id: id)).exists? ||
-      TravelModeApprover.where(user_id: id, kind: "approve").exists? ||
+      TravelModeApprover.where(user_id: id, kind: %w[approve tatkal]).exists? ||
       Tour.pending_for(self).exists?
   end
 
@@ -62,6 +62,7 @@ class User < ApplicationRecord
   def claim_approver?
     return @claim_approver if defined?(@claim_approver)
     @claim_approver = finance? || hr? ||
+      TravelModeApprover.where(user_id: id, kind: %w[approve tatkal]).exists? ||
       User.active.where(reporting_manager_id: id).or(User.active.where(l2_manager_id: id)).or(User.active.where(finance_approver_id: id)).exists? ||
       TourClaim.in_queue_of(self).exists?
   end

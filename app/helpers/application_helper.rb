@@ -5,6 +5,7 @@ module ApplicationHelper
     "l1_approved" => "bg-sky-50 text-sky-700 ring-sky-300/60",
     "l2_approved" => "bg-indigo-50 text-indigo-700 ring-indigo-300/60",
     "finance_query" => "bg-orange-50 text-orange-700 ring-orange-300/60",
+    "extra_pending" => "bg-indigo-50 text-indigo-700 ring-indigo-300/60",
     "finance_pending" => "bg-violet-50 text-violet-700 ring-violet-300/60",
     "approved" => "bg-emerald-50 text-emerald-700 ring-emerald-300/60",
     "returned" => "bg-orange-50 text-orange-700 ring-orange-300/60",
@@ -12,7 +13,7 @@ module ApplicationHelper
     "cancelled" => "bg-slate-100 text-slate-500 ring-slate-300/60"
   }.freeze
 
-  STATUS_LABELS = { "submitted" => "Pending L1", "draft" => "Prepared", "l1_approved" => "Forwarded to L2", "l2_approved" => "Forwarded for extra approval", "finance_pending" => "Forwarded to PD Finance", "finance_query" => "Finance query" }.freeze
+  STATUS_LABELS = { "submitted" => "Pending L1", "draft" => "Prepared", "l1_approved" => "Forwarded to L2", "l2_approved" => "Forwarded for extra approval", "finance_pending" => "Forwarded to PD Finance", "finance_query" => "Finance query", "extra_pending" => "Extra approval" }.freeze
 
   def status_badge(status, label: nil)
     tag.span(label || STATUS_LABELS.fetch(status.to_s, status.to_s.humanize), class: "badge badge-dot #{STATUS_COLORS[status.to_s]}")
@@ -88,7 +89,7 @@ module ApplicationHelper
     "submitted" => "Tour sent for approval", "approved" => "Tour approved", "self_sanctioned" => "Tour self-sanctioned",
     "cancelled" => "Tour cancelled", "claim_created" => "Claim form prepared", "claim_submitted" => "Claim sent",
     "claim_l1_approved" => "Claim forwarded by L1", "claim_l2_approved" => "Claim forwarded by L2", "l1_approved" => "Tour forwarded to L2 by L1", "l2_approved" => "Tour forwarded for extra approval", "extra_forwarded" => "Tour forwarded to next approver", "edited_resubmitted" => "Tour edited & sent again for approval",
-    "claim_query_sent" => "Finance query sent", "claim_query_replied" => "Finance query replied",
+    "claim_extra_approved" => "Claim forwarded (extra approval)", "claim_query_sent" => "Finance query sent", "claim_query_replied" => "Finance query replied",
     "city_added" => "City added", "city_updated" => "City updated", "city_enabled" => "City enabled", "city_disabled" => "City disabled", "saved_draft" => "Tour saved (draft)", "claim_approved" => "Claim approved (PD Finance)",
     "claim_rejected" => "Claim rejected (final)", "claim_returned" => "Claim returned to employee", "returned" => "Tour returned to employee", "rejected" => "Tour rejected (final)", "claim_cancelled" => "Claim cancelled", "deduction_updated" => "Deductions updated", "admin_edited" => "Edited by admin", "deleted" => "Deleted by admin",
     "bank_added" => "Bank account added", "bank_updated" => "Bank account updated", "bank_activated" => "Bank account activated",

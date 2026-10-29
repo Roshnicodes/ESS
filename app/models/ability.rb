@@ -31,6 +31,8 @@ class Ability
     can [ :update, :submit ], TourClaim, user_id: user.id, status: %w[draft returned]
     can :read,   TourClaim, l1_approver_id: user.id
     can :read,   TourClaim, l2_approver_id: user.id
+    can :read,   TourClaim, approval_steps: { approver_id: user.id }
+    can :read,   Tour, tour_claim: { approval_steps: { approver_id: user.id } }
     can :read,   TourClaim, finance_approver_id: user.id
     can :review, TourClaim do |c| c.current_reviewer?(user) end
 

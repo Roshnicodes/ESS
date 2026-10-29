@@ -349,6 +349,43 @@ ALTER SEQUENCE public.cities_id_seq OWNED BY public.cities.id;
 
 
 --
+-- Name: claim_approval_steps; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.claim_approval_steps (
+    id bigint NOT NULL,
+    tour_claim_id bigint NOT NULL,
+    approver_id bigint NOT NULL,
+    "position" integer NOT NULL,
+    reason character varying(200),
+    acted_by_id bigint,
+    acted_at timestamp(6) without time zone,
+    remark character varying(500),
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: claim_approval_steps_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.claim_approval_steps_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: claim_approval_steps_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.claim_approval_steps_id_seq OWNED BY public.claim_approval_steps.id;
+
+
+--
 -- Name: claim_city_travels; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -963,6 +1000,7 @@ CREATE TABLE public.tour_claims (
     delete_remark text,
     finance_approver_id bigint,
     bank_account_id bigint,
+    extra_approver_id bigint,
     CONSTRAINT chk_claims_advance_positive CHECK ((advance_amount >= (0)::numeric)),
     CONSTRAINT chk_claims_finance_coding_on_approval CHECK ((((status)::text <> 'approved'::text) OR ((project_id IS NOT NULL) AND (budget_line_item_id IS NOT NULL) AND (budget_line_item_code_id IS NOT NULL) AND (approved_at IS NOT NULL)))),
     CONSTRAINT chk_claims_l1 CHECK ((((status)::text <> 'l1_approved'::text) OR ((l1_approved_at IS NOT NULL) AND (l2_approver_id IS NOT NULL)))),
@@ -971,7 +1009,8 @@ CREATE TABLE public.tour_claims (
     CONSTRAINT chk_claims_submitted_l1 CHECK ((((status)::text <> 'submitted'::text) OR (l1_approver_id IS NOT NULL))),
     CONSTRAINT chk_claims_type CHECK (((claim_type)::text = ANY ((ARRAY['tour'::character varying, 'local'::character varying])::text[]))),
     CONSTRAINT chk_tour_claims_delete_remark CHECK (((deleted_at IS NULL) OR (length(btrim(COALESCE(delete_remark, ''::text))) > 0))),
-    CONSTRAINT chk_tour_claims_status CHECK (((status)::text = ANY ((ARRAY['draft'::character varying, 'submitted'::character varying, 'l1_approved'::character varying, 'finance_pending'::character varying, 'finance_query'::character varying, 'approved'::character varying, 'returned'::character varying, 'rejected'::character varying, 'cancelled'::character varying])::text[])))
+    CONSTRAINT chk_tour_claims_extra_pointer CHECK ((((status)::text <> 'extra_pending'::text) OR (extra_approver_id IS NOT NULL))),
+    CONSTRAINT chk_tour_claims_status CHECK (((status)::text = ANY ((ARRAY['draft'::character varying, 'submitted'::character varying, 'l1_approved'::character varying, 'extra_pending'::character varying, 'finance_pending'::character varying, 'finance_query'::character varying, 'approved'::character varying, 'returned'::character varying, 'rejected'::character varying, 'cancelled'::character varying])::text[])))
 );
 
 
@@ -1306,6 +1345,13 @@ ALTER TABLE ONLY public.cities ALTER COLUMN id SET DEFAULT nextval('public.citie
 
 
 --
+-- Name: claim_approval_steps id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.claim_approval_steps ALTER COLUMN id SET DEFAULT nextval('public.claim_approval_steps_id_seq'::regclass);
+
+
+--
 -- Name: claim_city_travels id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -1515,6 +1561,14 @@ ALTER TABLE ONLY public.budget_line_items
 
 ALTER TABLE ONLY public.cities
     ADD CONSTRAINT cities_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: claim_approval_steps claim_approval_steps_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.claim_approval_steps
+    ADD CONSTRAINT claim_approval_steps_pkey PRIMARY KEY (id);
 
 
 --
@@ -1806,6 +1860,13 @@ CREATE INDEX idx_projects_name_trgm ON public.projects USING gin (name public.gi
 
 
 --
+-- Name: idx_tour_claims_extra_queue; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_tour_claims_extra_queue ON public.tour_claims USING btree (extra_approver_id, status) WHERE (((status)::text = 'extra_pending'::text) AND (deleted_at IS NULL));
+
+
+--
 -- Name: idx_tour_visits_lower_place; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1915,6 +1976,20 @@ CREATE INDEX index_budget_line_item_codes_on_created_by_id ON public.budget_line
 --
 
 CREATE INDEX index_budget_line_items_on_created_by_id ON public.budget_line_items USING btree (created_by_id);
+
+
+--
+-- Name: index_claim_approval_steps_on_acted_by_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_claim_approval_steps_on_acted_by_id ON public.claim_approval_steps USING btree (acted_by_id) WHERE (acted_by_id IS NOT NULL);
+
+
+--
+-- Name: index_claim_approval_steps_on_approver_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_claim_approval_steps_on_approver_id ON public.claim_approval_steps USING btree (approver_id);
 
 
 --
@@ -2485,6 +2560,13 @@ CREATE UNIQUE INDEX uniq_bank_accounts_user_number ON public.bank_accounts USING
 
 
 --
+-- Name: uniq_claim_approval_steps; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uniq_claim_approval_steps ON public.claim_approval_steps USING btree (tour_claim_id, "position");
+
+
+--
 -- Name: uniq_claim_queries_open; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -2537,6 +2619,14 @@ ALTER TABLE ONLY public.notifications
 
 
 --
+-- Name: claim_approval_steps fk_rails_0a3067ad35; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.claim_approval_steps
+    ADD CONSTRAINT fk_rails_0a3067ad35 FOREIGN KEY (tour_claim_id) REFERENCES public.tour_claims(id);
+
+
+--
 -- Name: tour_claims fk_rails_0b7f8323ff; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2582,6 +2672,14 @@ ALTER TABLE ONLY public.claim_local_travels
 
 ALTER TABLE ONLY public.mileage_rates
     ADD CONSTRAINT fk_rails_2371d170a3 FOREIGN KEY (travel_mode_id) REFERENCES public.travel_modes(id);
+
+
+--
+-- Name: claim_approval_steps fk_rails_2478335162; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.claim_approval_steps
+    ADD CONSTRAINT fk_rails_2478335162 FOREIGN KEY (acted_by_id) REFERENCES public.users(id);
 
 
 --
@@ -2825,6 +2923,14 @@ ALTER TABLE ONLY public.bank_accounts
 
 
 --
+-- Name: tour_claims fk_rails_9636e48c64; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tour_claims
+    ADD CONSTRAINT fk_rails_9636e48c64 FOREIGN KEY (extra_approver_id) REFERENCES public.users(id);
+
+
+--
 -- Name: claim_daily_allowances fk_rails_9683c3338d; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2918,6 +3024,14 @@ ALTER TABLE ONLY public.travel_modes
 
 ALTER TABLE ONLY public.claim_lodgings
     ADD CONSTRAINT fk_rails_b2657fadfd FOREIGN KEY (city_id) REFERENCES public.cities(id);
+
+
+--
+-- Name: claim_approval_steps fk_rails_bbde84c1f2; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.claim_approval_steps
+    ADD CONSTRAINT fk_rails_bbde84c1f2 FOREIGN KEY (approver_id) REFERENCES public.users(id);
 
 
 --
@@ -3087,6 +3201,8 @@ ALTER TABLE ONLY public.projects
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261030110001'),
+('20261030100001'),
 ('20261029100001'),
 ('20261028160001'),
 ('20261028150001'),

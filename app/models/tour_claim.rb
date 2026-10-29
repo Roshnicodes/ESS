@@ -11,8 +11,8 @@ class TourClaim < ApplicationRecord
   include BlockedWords
   include SoftDeletable
 
-  STATUSES = %w[draft submitted l1_approved finance_pending finance_query approved returned rejected cancelled].index_by(&:itself).freeze
-  IN_PROCESS = %w[submitted l1_approved finance_pending finance_query].freeze
+  STATUSES = %w[draft submitted l1_approved extra_pending finance_pending finance_query approved returned rejected cancelled].index_by(&:itself).freeze
+  IN_PROCESS = %w[submitted l1_approved extra_pending finance_pending finance_query].freeze
   enum :status, STATUSES, validate: true
   enum :claim_type, Tour::TYPES, prefix: :type, validate: true
 
@@ -26,6 +26,9 @@ class TourClaim < ApplicationRecord
 
   belongs_to :tour
   has_many   :claim_queries, -> { order(:created_at) }, dependent: :delete_all
+  # extra approvals after L1 → L2 (Flight → Director, Personal Four Wheeler → COO → Director, Train AC / Tatkal → COO)
+  has_many   :approval_steps, -> { order(:position) }, class_name: "ClaimApprovalStep", dependent: :delete_all, inverse_of: :tour_claim
+  belongs_to :extra_approver, class_name: "User", optional: true   # extra approver the claim is waiting for now
   belongs_to :user
   belongs_to :bank_account, -> { unscope(where: :deleted_at) }, optional: true   # account the employee wants the money in
   belongs_to :project,               optional: true
@@ -77,12 +80,14 @@ class TourClaim < ApplicationRecord
     includes({ claim_city_travels: :travel_mode }, { claim_local_travels: :travel_mode }, { claim_lodgings: :city },
              { claim_daily_allowances: :city }, :claim_incidentals, :claim_visit_reports,
              :project, :budget_line_item, :budget_line_item_code, :l1_approver, :l2_approver, :finance_approver,
-             :approved_by, :returned_by, :rejected_by, { user: :location }, { bank_account: { passbook_attachment: :blob } })
+             :approved_by, :returned_by, :rejected_by, :extra_approver, { approval_steps: :approver }, { user: :location },
+             { bank_account: { passbook_attachment: :blob } })
   }
   scope :newest_first, -> { order(updated_at: :desc, id: :desc) }
   scope :in_queue_of, ->(u) {
     queues = where(status: "submitted", l1_approver_id: u.id).or(where(status: "l1_approved", l2_approver_id: u.id))
     queues = queues.or(where(status: "finance_pending", finance_approver_id: u.id))
+    queues = queues.or(where(status: "extra_pending", extra_approver_id: u.id))
     queues = queues.or(where(status: "finance_query", id: ClaimQuery.open.where(asked_to_id: u.id).select(:tour_claim_id)))
     u.finance? ? queues.or(where(status: "finance_pending", finance_approver_id: nil)) : queues
   }
@@ -130,12 +135,56 @@ class TourClaim < ApplicationRecord
   def current_reviewer?(u)
     (submitted? && l1_approver_id == u.id) ||
       (l1_approved? && l2_approver_id == u.id) ||
+      (extra_pending? && extra_approver_id == u.id) ||
       (finance_pending? && (finance_approver_id ? finance_approver_id == u.id : u.finance?))
   end
 
   # :l1, :l2 or :finance – which step the current reviewer is doing (:reply = answering Finance's question)
   def review_step
-    { "submitted" => :l1, "l1_approved" => :l2, "finance_pending" => :finance, "finance_query" => :reply }[status]
+    { "submitted" => :l1, "l1_approved" => :l2, "extra_pending" => :extra, "finance_pending" => :finance, "finance_query" => :reply }[status]
+  end
+
+  # ---- extra approvals (same rules as the tour plan) -------------------------------------------
+  # modes that need extra approval: the tour's visits (incl. Tatkal) + modes used in A. Travel / B. Local Travel
+  def extra_needs
+    needs = tour ? tour.extra_needs.map { |_visit, label, chain| [ label, chain ] } : []
+    (claim_city_travels + claim_local_travels).reject(&:marked_for_destruction?).filter_map(&:travel_mode).uniq.each do |m|
+      chain = m.approver_chain.map { |a| [ a.user_id, a.position ] }
+      needs << [ m.name, chain ] if chain.any?
+    end
+    needs
+  end
+
+  def extra_reason = extra_needs.map(&:first).uniq.join(", ").presence
+  def pending_steps = approval_steps.reject(&:done?)
+  def current_step  = (pending_steps.first if extra_pending?)
+  def extra_label   = current_step&.label || extra_approver&.designation.presence || extra_approver&.name
+
+  # who gets it after the current reviewer: "Krishn Kumar Trivedi", "Director", or the Finance person
+  def next_reviewer_label
+    nxt = case status
+          when "submitted"     then l2_approver ? l2_approver.name : approval_steps.first&.label
+          when "l1_approved"   then approval_steps.first&.label
+          when "extra_pending" then pending_steps.second&.label
+          end
+    nxt || (finance_pending? || finance_query? ? nil : (user.finance_approver || finance_approver)&.name || "PD Finance")
+  end
+
+  def assign_extra_steps
+    chain = ExtraApprovalChain.build(extra_needs, skip: [ user_id, l1_approver_id, l2_approver_id ])
+    self.approval_steps = chain.each_with_index.map { |(uid, reason), i| ClaimApprovalStep.new(approver_id: uid, position: i + 1, reason: reason) }
+    self.extra_approver = nil
+  end
+
+  # after L1 / L2: to the first extra approver if any, otherwise to Finance
+  def move_past_l2
+    if (first = approval_steps.first)
+      self.status = "extra_pending"
+      self.extra_approver_id = first.approver_id
+    else
+      self.status = "finance_pending"
+      assign_current_finance_approver
+    end
   end
 
   def open_query = claim_queries.detect(&:open?)
@@ -175,6 +224,7 @@ class TourClaim < ApplicationRecord
     when "draft"           then "Claim form prepared (not sent)"
     when "submitted"       then "Pending with L1 – #{l1_approver}"
     when "l1_approved"     then "Forwarded to L2 – #{l2_approver}"
+    when "extra_pending"   then "Forwarded to #{extra_label}"
     when "finance_pending" then "Forwarded to PD Finance#{" – #{finance_approver}" if finance_approver}"
     when "finance_query"   then "Finance query – waiting for reply from #{open_query&.role_label} #{open_query&.asked_to}"
     when "approved"        then approved_by_id == user_id ? "Approved" : "Approved by #{approved_by}"
@@ -196,29 +246,39 @@ class TourClaim < ApplicationRecord
       self.l2_approver  = (user.l2_manager unless user.l2_manager_id.nil? || user.l2_manager_id == user.reporting_manager_id)
       raise Workflow::NotAllowed, "L1 (reporting manager) is not set. Contact PD HR." if l1_approver.nil?
       self.finance_approver = user.finance_approver
+      assign_extra_steps
       self.returned_at = self.returned_by = self.return_remark = nil
       self.l1_approved_at = self.l1_approved_by = self.l2_approved_at = self.l2_approved_by = nil
       self.status = "submitted"
     end
   end
 
-  # L1 / L2 approval – moves the claim to the next level (L2, or PD Finance).
+  # L1 / L2 / extra approval – moves the claim on: L1 → L2 (if set) → extra approvers (COO, Director …) → Finance.
   def forward!(by:, remark: nil)
     step = review_step
-    raise Workflow::NotAllowed, "This claim is not pending with you" unless step.in?(%i[l1 l2]) && current_reviewer?(by)
+    raise Workflow::NotAllowed, "This claim is not pending with you" unless step.in?(%i[l1 l2 extra]) && current_reviewer?(by)
     transition!(by: by, action: :"claim_#{step}_approved", remark: remark) do
-      if step == :l1
+      case step
+      when :l1
         self.l1_approved_at = Time.current
         self.l1_approved_by = by
         self.l1_remark = remark.presence
-        self.status = l2_approver ? "l1_approved" : "finance_pending"
-        assign_current_finance_approver if finance_pending?
-      else
+        l2_approver ? (self.status = "l1_approved") : move_past_l2
+      when :l2
         self.l2_approved_at = Time.current
         self.l2_approved_by = by
         self.l2_remark = remark.presence
-        self.status = "finance_pending"
-        assign_current_finance_approver
+        move_past_l2
+      when :extra
+        current = current_step
+        current.update!(acted_at: Time.current, acted_by: by, remark: remark.presence)
+        if (nxt = pending_steps.first)
+          self.extra_approver_id = nxt.approver_id
+        else
+          self.extra_approver = nil
+          self.status = "finance_pending"
+          assign_current_finance_approver
+        end
       end
     end
   end

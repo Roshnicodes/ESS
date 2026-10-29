@@ -71,16 +71,26 @@ class Notifier
     case event.to_sym
     when :claim_submitted
       push c.l1_approver, c, actor, :claim_pending, "Claim for your approval (L1)", "#{emp.name} sent #{ref}", approvals_claim_path(c)
-    when :claim_l1_approved, :claim_l2_approved
+    when :claim_l1_approved, :claim_l2_approved, :claim_extra_approved
       if c.l1_approved?
         push emp, c, actor, :claim_forwarded, "Your claim was forwarded to L2", "#{by} forwarded #{ref}", tour_claim_path(t), remark
         push c.l2_approver, c, actor, :claim_pending, "Claim for your approval (L2)", "#{emp.name} · #{ref} – forwarded by #{by}", approvals_claim_path(c), remark
+      elsif c.extra_pending?
+        why = c.extra_reason ? " (#{c.extra_reason})" : ""
+        push emp, c, actor, :claim_forwarded, "Your claim was forwarded to #{c.extra_label}", "#{by} forwarded #{ref}", tour_claim_path(t), remark
+        push c.extra_approver, c, actor, :claim_pending, "Claim for your approval#{why}", "#{emp.name} · #{ref} – forwarded by #{by}", approvals_claim_path(c), remark
       else
         push emp, c, actor, :claim_forwarded, "Your claim was forwarded to PD Finance", "#{by} forwarded #{ref}", tour_claim_path(t), remark
         finance_people(c).each { |u| push u, c, actor, :claim_pending, "Claim for final approval", "#{emp.name} · #{ref} – forwarded by #{by}", approvals_claim_path(c), remark }
       end
     when :claim_approved
       push emp, c, actor, :claim_approved, "Your claim is approved", "#{ref} approved by #{by}", tour_claim_path(t), remark
+      # Local Mileage: notify-only people of the modes used (e.g. Administration for Four Wheeler)
+      if c.type_local?
+        c.claim_local_travels.filter_map(&:travel_mode).uniq.each do |m|
+          m.watchers.each { |w| push w.user, c, actor, :claim_info, "FYI: #{emp.name} used #{m.name}", "Local mileage #{ref} of #{emp.name} (#{emp.emp_code}) – #{m.name}", notifications_path }
+        end
+      end
       [ c.l1_approver, c.l2_approver ].compact.uniq.each { |u| push u, c, actor, :claim_approved, "Claim approved by PD Finance", "#{emp.name} · #{ref}", approvals_claim_path(c) }
     when :claim_query_sent
       q = c.open_query

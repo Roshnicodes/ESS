@@ -9,7 +9,7 @@ class Approvals::ClaimsController < ApplicationController
     base = TourClaim.where(claim_type: @type).includes(:user, :tour, :approved_by, :project)
     @claims =
       if @scope == "approved"
-        (current_user.finance? || current_user.hr? ? base : base.where(user: current_user).or(base.where(l1_approver: current_user)).or(base.where(l2_approver: current_user)).or(base.where(finance_approver: current_user)))
+        (current_user.finance? || current_user.hr? ? base : base.where(user: current_user).or(base.where(l1_approver: current_user)).or(base.where(l2_approver: current_user)).or(base.where(finance_approver: current_user)).or(base.where(id: ClaimApprovalStep.where(approver_id: current_user.id).select(:tour_claim_id))))
           .approved.order(approved_at: :desc)
       else
         base.in_queue_of(current_user).order(:submitted_at)
@@ -50,7 +50,9 @@ class Approvals::ClaimsController < ApplicationController
     authorize! :review, @claim
     remark = remark!
     TourClaim.transaction { save_deductions!; @claim.forward!(by: current_user, remark: remark) }
-    nxt = @claim.l1_approved? ? "L2 – #{@claim.l2_approver}" : "Finance – #{@claim.finance_approver || 'PD Finance'}"
+    nxt = if @claim.l1_approved? then "L2 – #{@claim.l2_approver}"
+          elsif @claim.extra_pending? then @claim.extra_label
+          else "Finance – #{@claim.finance_approver || 'PD Finance'}" end
     redirect_to approvals_claims_path(type: @claim.claim_type), notice: "Claim forwarded to #{nxt}."
   rescue ActiveRecord::RecordInvalid
     render_review_again

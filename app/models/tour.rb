@@ -351,16 +351,8 @@ class Tour < ApplicationRecord
   # Extra approvers of all modes used, in order (a person's highest position wins, e.g. COO 1 → Director 2);
   # skipped when that person is the employee or already L1 / L2.
   def assign_extra_steps
-    rank = {}; reasons = Hash.new { |h, k| h[k] = [] }
-    extra_needs.each do |_visit, label, chain|
-      chain.each do |uid, pos|
-        rank[uid] = [ rank[uid].to_i, pos ].max
-        reasons[uid] << label
-      end
-    end
-    skip = [ user_id, approver_id, l2_approver_id ].compact
-    ids = rank.keys.reject { |id| skip.include?(id) }.each_with_index.sort_by { |id, i| [ rank[id], i ] }.map(&:first)
-    steps = ids.each_with_index.map { |uid, i| TourApprovalStep.new(approver_id: uid, position: i + 1, reason: reasons[uid].uniq.join(", ").first(200)) }
+    chain = ExtraApprovalChain.build(extra_needs.map { |_visit, label, ch| [ label, ch ] }, skip: [ user_id, approver_id, l2_approver_id ])
+    steps = chain.each_with_index.map { |(uid, reason), i| TourApprovalStep.new(approver_id: uid, position: i + 1, reason: reason) }
     self.approval_steps = steps
     self.l3_approver = nil
   end
