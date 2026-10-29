@@ -29,8 +29,7 @@ class Masters::UsersController < ApplicationController
     note = "Sheet “#{@result.sheet}”: #{@result.created} new added, #{@result.updated} updated, #{@result.skipped} already existed (unchanged), L1/L2 set for #{@result.managers_linked}."
     note += " Password set for #{@result.passwords} employee#{"s" unless @result.passwords == 1}." if @result.passwords.positive?
     flash[:notice] = note
-    flash[:import_errors] = @result.errors.first(30) if @result.errors.any?
-    redirect_to masters_users_path
+    flash[:import_errors] = @result.errors.first(5).map { |e| e.to_s.truncate(100) } if @result.errors.any?    redirect_to masters_users_path
   rescue ArgumentError, Zip::Error => e
     redirect_to masters_users_path, alert: "Could not read the file: #{e.message}"
   end
