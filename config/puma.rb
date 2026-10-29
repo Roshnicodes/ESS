@@ -28,6 +28,17 @@
 threads_count = ENV.fetch("RAILS_MAX_THREADS", 3)
 threads threads_count, threads_count
 
+# Production: one Puma process per CPU core (max 4) so several people are served in parallel
+# (a single Ruby process uses only one core). Override with WEB_CONCURRENCY; 0 = single process.
+if ENV.fetch("RAILS_ENV", "development") == "production"
+  require "etc"
+  worker_count = Integer(ENV.fetch("WEB_CONCURRENCY") { [ Etc.nprocessors, 4 ].min })
+  if worker_count > 1
+    workers worker_count
+    preload_app!
+  end
+end
+
 # Specifies the `port` that Puma will listen on to receive requests; default is 3000.
 port ENV.fetch("PORT", 3000)
 

@@ -59,6 +59,10 @@ Rails.application.routes.draw do
   namespace :masters do
     resources :cities, only: %i[index new create edit update] do
       patch :toggle, on: :member
+      collection do
+        get  :export
+        post :import
+      end
     end
     resources :travel_modes, only: %i[index new create edit update] do
       patch :toggle, on: :member

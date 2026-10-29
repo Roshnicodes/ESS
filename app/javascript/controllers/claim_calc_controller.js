@@ -5,7 +5,7 @@ import { Controller } from "@hotwired/stimulus"
 //   B       Two/Four Wheeler: KM = meter to − meter from, amount column = ₹/km, total = KM × rate − deduction
 //           Public Transport: meters locked at 0, KM and total typed
 //   C       days from From / To date-time (same hours rule as D), rate auto-filled from the chosen city's
-//           lodging rate in the City master (typeable only when that city has no rate), amount = rate × days
+//           rate = the city's rate in the City master (same as DA; typeable only when the city has none), amount = rate × days
 //   D       rate auto-filled from arrival city (editable), amount = days × DA rate × applicable % / 100
 //   Grand total = Σ section sub totals, Balance = grand total − advance
 export default class extends Controller {
@@ -85,6 +85,7 @@ export default class extends Controller {
         rateEl.readOnly = fromMaster
         rateEl.tabIndex = fromMaster ? -1 : 0
         rateEl.classList.toggle("bg-slate-50", fromMaster)
+        rateEl.placeholder = fromMaster || !city?.value ? "city rate" : "Enter rate"   // city without a rate → employee types it → employee types it
         if (fromMaster) rateEl.value = cityRate || "0"
         else if (changed === "city") rateEl.value = ""
       } else if (changed === "city" && cityRate) {

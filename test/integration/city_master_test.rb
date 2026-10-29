@@ -33,4 +33,21 @@ class CityMasterTest < ActionDispatch::IntegrationTest
     get masters_cities_path
     assert_redirected_to root_path
   end
+
+  test "City Excel: download and upload back; rate changed; new city added" do
+    sign_in user("HR001")
+    get export_masters_cities_path
+    assert_response :success
+    xlsx = Tempfile.new([ "cities", ".xlsx" ]); xlsx.binmode; xlsx.write(response.body); xlsx.close
+    post import_masters_cities_path, params: { file: Rack::Test::UploadedFile.new(xlsx.path, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet") }
+    assert_match "0 new cities added, 0 updated", flash[:notice]
+
+    csv = Tempfile.new([ "cities", ".csv" ])
+    csv.write("City,Rate (DA & Lodging)\nIndore,650\nNew Town X,575\n"); csv.close
+    post import_masters_cities_path, params: { file: Rack::Test::UploadedFile.new(csv.path, "text/csv") }
+    assert_match "1 new cities added, 1 updated", flash[:notice]
+    assert_equal 650, City.find_by!(name: "Indore").da_rate
+    assert_equal 575, City.find_by!(name: "New Town X").da_rate
+    assert_equal "city_updated", City.find_by!(name: "Indore").activity_logs.last.action
+  end
 end

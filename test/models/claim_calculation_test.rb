@@ -45,12 +45,13 @@ class ClaimCalculationTest < ActiveSupport::TestCase
       from_date: @tour.from_date.to_time + 12.hours, to_date: @tour.to_date.to_time + 20.hours, rate: 900)
     @claim.save!
     assert_equal 2.5, l.no_of_days                  # 12:00 day 1 → 20:00 day 3 = 2 days 8 h → 2 + ½
-    assert_equal 2250, l.amount
+    assert_equal l.city.da_rate, l.rate             # city rate (same as DA), typed 900 ignored
+    assert_equal (2.5 * l.city.da_rate).round(2), l.amount
   end
 
-  test "lodging rate comes from the selected city master" do
+  test "lodging rate comes from the selected city master (same rate as DA)" do
     city = City.find_by!(name: "Jhabua")
-    city.update!(lodging_rate: 1_200)
+    city.update!(da_rate: 1_200)
     l = @claim.claim_lodgings.build(lodging_date: @tour.from_date, city: city,
       from_date: @tour.from_date.to_time + 10.hours, to_date: @tour.from_date.to_time + 20.hours, rate: 1)
 
@@ -110,5 +111,16 @@ class ClaimCalculationTest < ActiveSupport::TestCase
     @claim.save!
     assert_equal "Meeting for and villages by team at Kasaravad", @claim.general_description
     assert @claim.blocked_words_removed?
+  end
+
+  test "lodging uses the city's DA rate (typed value ignored)" do
+    city = City.find_by!(name: "Jhabua")
+    city.update!(da_rate: 550, lodging_rate: 9_999)          # lodging_rate is not used any more
+    l = @claim.claim_lodgings.build(lodging_date: @tour.from_date, city: city, rate: 99,
+      from_date: @tour.from_date.to_time + 10.hours, to_date: @tour.from_date.to_time + 1.day + 18.hours)
+    @claim.save!
+    assert_equal 550, l.rate
+    assert_equal 1.5, l.no_of_days                  # 1 day 8 h
+    assert_equal 825, l.amount
   end
 end

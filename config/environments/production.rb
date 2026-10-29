@@ -9,6 +9,9 @@ Rails.application.configure do
   # Eager load code on boot for better performance and memory savings (ignored by Rake tasks).
   config.eager_load = true
 
+  # gzip every response (pages, CSS, JS) – ~6× less data per page when no proxy compresses for us
+  config.middleware.insert_before ActionDispatch::Static, Rack::Deflater
+
   # Full error reports are disabled.
   config.consider_all_requests_local = false
 

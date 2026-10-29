@@ -7,7 +7,7 @@ class Masters::CitiesController < ApplicationController
     @cities = City.ordered
     if params[:q].present?
       q = "%#{City.sanitize_sql_like(params[:q].strip)}%"
-      @cities = @cities.where("name ILIKE :q OR state ILIKE :q OR CAST(da_rate AS text) ILIKE :q OR CAST(lodging_rate AS text) ILIKE :q", q: q)
+      @cities = @cities.where("name ILIKE :q OR state ILIKE :q OR CAST(da_rate AS text) ILIKE :q", q: q)
     end
     @cities = @cities.where(active: params[:status] == "active") if params[:status].in?(%w[active inactive])
     @counts = { all: City.count, active: City.active.count }
@@ -23,7 +23,7 @@ class Masters::CitiesController < ApplicationController
 
   def create
     if @city.save
-      @city.log_activity!(:city_added, details: { da_rate: @city.da_rate.to_s, lodging_rate: @city.lodging_rate.to_s })
+      @city.log_activity!(:city_added, details: { da_rate: @city.da_rate.to_s })
       redirect_to masters_cities_path, notice: "#{@city.name} added (DA ₹#{@city.da_rate})."
     else
       render :new, status: :unprocessable_entity
@@ -47,9 +47,30 @@ class Masters::CitiesController < ApplicationController
     redirect_back fallback_location: masters_cities_path, notice: "#{@city.name} #{@city.active? ? 'enabled' : 'disabled'}."
   end
 
+
+  # Download Excel: City, State, Rate (DA & Lodging), Active – fill / change and upload back
+  def export
+    send_data CityRateExport.new(City.ordered).to_xlsx, filename: "city_da_lodging_rates_#{Date.current}.xlsx",
+              type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+  end
+
+  def import
+    file = params[:file]
+    return redirect_to(masters_cities_path, alert: "Choose the Excel file (.xlsx or .csv) to upload.") if file.blank?
+    unless File.extname(file.original_filename).downcase.in?(%w[.xlsx .csv])
+      return redirect_to(masters_cities_path, alert: "Only .xlsx or .csv files can be uploaded.")
+    end
+    res = CityRateImport.new(file.tempfile.path, by: current_user, original_filename: file.original_filename).call
+    note = "#{res.created} new cities added, #{res.updated} updated, #{res.unchanged} unchanged."
+    note += " #{res.errors.size} row(s) not saved: #{res.errors.first(3).join('; ')}" if res.errors.any?
+    redirect_to masters_cities_path, (res.errors.any? ? :alert : :notice) => note
+  rescue ArgumentError, Zip::Error, CSV::MalformedCSVError => e
+    redirect_to masters_cities_path, alert: "Could not read the file: #{e.message}"
+  end
+
   private
 
   def city_params
-    params.require(:city).permit(:name, :state, :da_rate, :lodging_rate, :active)
+    params.require(:city).permit(:name, :state, :da_rate, :active)
   end
 end

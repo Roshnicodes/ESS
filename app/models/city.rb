@@ -4,7 +4,10 @@ class City < ApplicationRecord
   include NameMaster
   include Auditable
   validates :da_rate, presence: true, numericality: { greater_than_or_equal_to: 0 }
-  validates :lodging_rate, numericality: { greater_than_or_equal_to: 0 }, allow_nil: true
+  validates :lodging_rate, numericality: { greater_than_or_equal_to: 0 }, allow_nil: true   # not used – lodging uses da_rate
+
+  # One rate per city, used for both D. DA and C. Lodging (as on the earlier ESS)
+  def claim_rate = da_rate
   validates :name, length: { maximum: 100 }
   validates :state, length: { maximum: 60 }
 end
