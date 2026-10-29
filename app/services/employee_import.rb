@@ -1,5 +1,6 @@
 require "roo"
 require "etc"
+require "bcrypt"
 
 # Imports HR's "Employee details" Excel (the sheet with Employee Code / L-1 / L-2 columns).
 #
@@ -34,6 +35,10 @@ class EmployeeImport
   # Password hashing is intentionally limited so an upload does not make the
   # web server unresponsive, while still using Devise's normal BCrypt cost.
   PASSWORD_HASH_WORKERS = 6
+  # Sheet passwords are hashed with BCrypt cost 10 (4× faster than the login default of 12, still the
+  # recommended minimum). The cost is stored inside each hash, so login works the same; when the employee
+  # later changes the password it is saved with the normal cost.
+  IMPORT_BCRYPT_COST = 10
   def self.default_password(_code = nil) = DEFAULT_PASSWORD
 
   def initialize(path, by:, mode: :add_only, original_filename: nil)
@@ -182,7 +187,7 @@ class EmployeeImport
       Thread.new do
         loop do
           line, password = jobs.pop(true)
-          digest = Devise::Encryptor.digest(User, password)
+          digest = ::BCrypt::Password.create("#{password}#{User.pepper}", cost: [ IMPORT_BCRYPT_COST, User.stretches ].min).to_s
           mutex.synchronize { hashes[line] = digest }
         rescue ThreadError
           break
