@@ -1,0 +1,41 @@
+<% content_for :title, "City, DA & Lodging Rate" %>
+<%= page_header("City, DA & Lodging Rate", "Only these cities show in the claim form (C. Lodging, D. Daily Allowance). DA = days × city DA rate × applicable %; lodging = days × city lodging rate.", icon_name: :building) do %>
+  <%= print_button %>
+  <%= render "shared/activity_button", id: "city-history", title: "City master history", sections: [["Changes", @logs.reverse]] %>
+  <%= link_to new_masters_city_path, class: "btn-primary" do %><%= icon(:plus) %> Add City<% end %>
+<% end %>
+
+<div class="card overflow-hidden fade-up">
+  <%= form_with url: masters_cities_path, method: :get, class: "flex flex-wrap items-center gap-2 border-b border-white/70 px-4 py-3" do %>
+    <div class="relative w-full sm:w-72">
+      <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-400"><%= icon(:search, "h-4 w-4") %></span>
+      <%= search_field_tag :q, params[:q], placeholder: "Search city, state or rate…", class: "inp pl-9" %>
+    </div>
+    <% [["", "All (#{@counts[:all]})"], ["active", "Enabled (#{@counts[:active]})"], ["inactive", "Disabled (#{@counts[:all] - @counts[:active]})"]].each do |val, label| %>
+      <%= link_to label, masters_cities_path(q: params[:q], status: val.presence), class: ["btn-xs", (params[:status].to_s == val ? "btn-primary" : "btn-light")] %>
+    <% end %>
+    <%= button_tag class: "btn-light btn-xs ml-auto" do %><%= icon(:filter) %> Search<% end %>
+  <% end %>
+  <div class="overflow-x-auto"><table class="tbl tbl-hover tbl-stack">
+    <thead><tr><th>City</th><th>State</th><th class="md:text-right">DA Rate / day</th><th class="md:text-right">Lodging Rate / day</th><th>Enable / Disable</th><th class="no-print"></th></tr></thead>
+    <tbody>
+      <% @cities.each do |c| %>
+        <tr class="<%= 'opacity-55' unless c.active? %>">
+          <td data-label="City" class="font-semibold"><%= c.name %></td>
+          <td data-label="State" class="text-slate-600"><%= c.state.presence || "—" %></td>
+          <td data-label="DA Rate" class="font-semibold md:text-right"><%= inr(c.da_rate) %></td>
+          <td data-label="Lodging Rate" class="font-semibold md:text-right"><%= c.lodging_rate.present? ? inr(c.lodging_rate) : tag.span("Not set", class: "text-xs font-normal text-slate-400") %></td>
+          <td data-label="Status">
+            <%= button_to toggle_masters_city_path(c), method: :patch, class: "group inline-flex items-center gap-2", form_class: "inline", title: c.active? ? "Disable" : "Enable" do %>
+              <span class="relative inline-flex h-6 w-11 items-center rounded-full transition <%= c.active? ? 'bg-emerald-500' : 'bg-slate-300' %>"><span class="absolute h-5 w-5 rounded-full bg-white shadow transition <%= c.active? ? 'left-[22px]' : 'left-0.5' %>"></span></span>
+              <span class="text-xs font-semibold <%= c.active? ? 'text-emerald-700' : 'text-slate-500' %>"><%= c.active? ? "Enabled" : "Disabled" %></span>
+            <% end %>
+          </td>
+          <td class="md:text-right no-print"><%= link_to edit_masters_city_path(c), class: "btn-light btn-xs" do %><%= icon(:pencil) %> Edit<% end %></td>
+        </tr>
+      <% end %>
+      <%= empty_row(6, "No city found") if @cities.empty? %>
+    </tbody>
+  </table></div>
+  <% if @cities.total_pages > 1 %><div class="border-t border-white/70 px-4 py-3"><%= paginate @cities %></div><% end %>
+</div>
