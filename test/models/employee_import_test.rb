@@ -64,11 +64,11 @@ class EmployeeImportTest < ActiveSupport::TestCase
     File.delete(path) if path && File.exist?(path)
   end
 
-  test "a password under six characters is refused and the old one kept" do
+  test "a password under three characters is refused and the old one kept" do
     hr = user("HR001")
     existing = user("AM001")
     existing.update!(password: "oldpass1")
-    path = xlsx([ [ "Swapnil Amne", "AM001", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", 7860 ] ])
+    path = xlsx([ [ "Swapnil Amne", "AM001", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "12" ] ])
     res = EmployeeImport.new(path, by: hr).call
 
     assert_equal 0, res.passwords
@@ -83,6 +83,21 @@ class EmployeeImportTest < ActiveSupport::TestCase
     path = xlsx([ [ "Numeric Pass", 7703, "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", 90901234 ] ])
     EmployeeImport.new(path, by: hr).call
     assert User.find_by!(emp_code: "7703").valid_password?("90901234")
+  ensure
+    File.delete(path) if path && File.exist?(path)
+  end
+
+  test "three- and four-character passwords from the HR sheet can log in" do
+    hr = user("HR001")
+    path = xlsx([
+      [ "Short Password", 7704, "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "a1b" ],
+      [ "Four Digit Password", 7705, "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "7860" ]
+    ])
+    res = EmployeeImport.new(path, by: hr).call
+
+    assert_equal 2, res.passwords
+    assert User.find_by!(emp_code: "7704").valid_password?("a1b")
+    assert User.find_by!(emp_code: "7705").valid_password?("7860")
   ensure
     File.delete(path) if path && File.exist?(path)
   end

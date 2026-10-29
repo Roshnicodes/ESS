@@ -12,17 +12,20 @@
   </div>
 <% end %>
 
-<%= form_with url: import_masters_users_path, multipart: true, class: "card mb-5 fade-up", data: { turbo: false } do %>
+<%= form_with url: import_masters_users_path, multipart: true, class: "card mb-5 fade-up", data: { turbo: false, controller: "upload", action: "submit->upload#start" } do %>
   <div class="card-head"><span class="card-title"><span class="icon-chip bg-leaf-50 text-leaf-600"><%= icon(:inbox) %></span>Upload Excel <span class="muted font-normal">from HR application (.xlsx / .csv)</span></span></div>
   <div class="card-body grid items-end gap-4 lg:grid-cols-[1fr_auto_auto]">
     <div>
       <label class="lbl" for="file">Employee Excel file</label>
       <input type="file" name="file" id="file" required accept=".xlsx,.csv" class="inp file:mr-3 file:rounded-md file:border-0 file:bg-brand-50 file:px-3 file:py-1 file:text-sm file:font-semibold file:text-brand-700">
       <p class="mt-1.5 text-xs text-slate-500">Reads the sheet having <b>Employee Code, L-1, L-2</b> columns. Existing employees stay the same – only new employee codes are added. Blank L-1 / L-2 of existing employees are filled. New employees get password <code class="rounded bg-slate-100 px-1">123456</code> (they can change it from Change Password).</p>
-      <p class="mt-1 text-xs text-slate-500"><b>Password column:</b> fill it to set that employee's login password – it works even without ticking “update existing”. Leave it blank to keep the current password. Minimum <b>6 characters</b>; format the column as <b>Text</b> in Excel so leading zeros are not lost.</p>
+      <p class="mt-1 text-xs text-slate-500"><b>Password column:</b> fill it to set that employee's login password – it works even without ticking “update existing”. Leave it blank to keep the current password. Minimum <b>3 characters</b>; format the column as <b>Text</b> in Excel so leading zeros are not lost.</p>
     </div>
     <label class="flex items-center gap-2 rounded-lg border border-slate-200/80 bg-white/60 px-3 py-2 text-sm"><%= check_box_tag :update_existing, "1", false, class: "check" %> Also update existing employees</label>
-    <%= button_tag class: "btn-success", data: { turbo_confirm: "Upload and add new employees?" } do %><%= icon(:send) %> Upload<% end %>
+    <div class="text-right">
+      <%= button_tag class: "btn-success", data: { turbo_confirm: "Upload and update employee details and passwords?", upload_target: "button" } do %><%= icon(:send) %> <span data-upload-target="label">Upload</span><% end %>
+      <p hidden data-upload-target="progress" class="mt-1.5 text-xs font-medium text-brand-700">Updating employee passwords securely… please keep this page open.</p>
+    </div>
   </div>
 <% end %>
 

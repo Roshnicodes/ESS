@@ -1,4 +1,5 @@
 require "roo"
+require "etc"
 
 # Imports HR's "Employee details" Excel (the sheet with Employee Code / L-1 / L-2 columns).
 #
@@ -30,6 +31,9 @@ class EmployeeImport
   end
 
   DEFAULT_PASSWORD = "123456"   # employee changes it later from "Change Password"
+  # Password hashing is intentionally limited so an upload does not make the
+  # web server unresponsive, while still using Devise's normal BCrypt cost.
+  PASSWORD_HASH_WORKERS = 6
   def self.default_password(_code = nil) = DEFAULT_PASSWORD
 
   def initialize(path, by:, mode: :add_only, original_filename: nil)
@@ -54,23 +58,32 @@ class EmployeeImport
     end
 
     res = Result.new(sheet: sheet_name, created: 0, updated: 0, skipped: 0, managers_linked: 0, passwords: 0, errors: [])
+    users_by_code = User.where("lower(emp_code) IN (?)", rows.map { |row| row[:emp_code].downcase })
+                        .index_by { |user| user.emp_code.downcase }
+    # BCrypt is deliberately expensive.  Hash the independent passwords before
+    # opening the database transaction and across a small, bounded worker pool.
+    # This makes a full employee-sheet upload substantially faster without
+    # lowering the password-security cost.
+    password_hashes = prehash_passwords(rows, users_by_code)
     touched = []
     existing = []
     User.transaction do
       rows.each do |row|
-        user = User.where("lower(emp_code) = ?", row[:emp_code].downcase).first
+        user = users_by_code[row[:emp_code].downcase]
         if user && @mode == :add_only
           res.skipped += 1
           existing << [ user, row ]   # only blank L1/L2 may be filled
-          reset_password(user, row, res)   # …and a password typed in the sheet
+          reset_password(user, row, res, password_hashes[row[:line]])   # …and a password typed in the sheet
           next
         end
         is_new = user.nil?
-        user ||= User.new(emp_code: row[:emp_code], role: "employee", password: self.class.default_password(row[:emp_code]))
+        user ||= User.new(emp_code: row[:emp_code], role: "employee")
         user.assign_attributes(profile(row, user))
         wanted = password_for(user, row, res)
-        user.password = wanted if wanted
+        password = wanted || (self.class.default_password(row[:emp_code]) if is_new)
+        assign_password(user, password, password_hashes[row[:line]]) if password
         if user.save
+          users_by_code[row[:emp_code].downcase] = user
           user.log_activity!(is_new ? :user_imported : :user_import_updated, actor: @by, details: { line: row[:line] })
           if wanted
             user.log_activity!(:user_password_set, actor: @by, details: { line: row[:line] })
@@ -131,17 +144,15 @@ class EmployeeImport
   # value is never logged – only the fact that it was set.  An admin account
   # can only be reset by another admin, so the sheet is not a way up.
   def password_for(user, row, res)
-    pw = row[:password]
-    pw = pw.to_i if pw.is_a?(Float) && pw == pw.to_i   # Excel hands 7860 back as 7860.0
-    pw = pw.to_s.strip.presence or return nil
+    pw = password_value(row) or return nil
     return pw unless user.persisted? && user.admin? && !@by.admin?
     res.errors << "Row #{row[:line]} (#{row[:emp_code]}): only an admin can change an admin's password"
     nil
   end
 
-  def reset_password(user, row, res)
+  def reset_password(user, row, res, prehashed_password = nil)
     pw = password_for(user, row, res) or return
-    user.password = pw
+    assign_password(user, pw, prehashed_password)
     if user.save
       user.log_activity!(:user_password_set, actor: @by, details: { line: row[:line] })
       res.passwords += 1
@@ -149,6 +160,63 @@ class EmployeeImport
       res.errors << "Row #{row[:line]} (#{row[:emp_code]}): password not changed – #{user.errors.full_messages.to_sentence}"
       user.reload
     end
+  end
+
+  # Hash every supplied password (and a default only for new employees) before
+  # starting the write transaction. Devise::Encryptor keeps the digest format,
+  # BCrypt cost and optional pepper identical to assigning user.password.
+  def prehash_passwords(rows, users_by_code)
+    candidates = rows.filter_map do |row|
+      password = password_value(row)
+      password ||= self.class.default_password(row[:emp_code]) unless users_by_code.key?(row[:emp_code].downcase)
+      [ row[:line], password ] if password && password.length >= User::PASSWORD_MINIMUM_LENGTH
+    end
+    return {} if candidates.empty?
+
+    jobs = Queue.new
+    candidates.each { |candidate| jobs << candidate }
+    hashes = {}
+    mutex = Mutex.new
+    workers = [ candidates.size, Etc.nprocessors, PASSWORD_HASH_WORKERS ].min
+    threads = workers.times.map do
+      Thread.new do
+        loop do
+          line, password = jobs.pop(true)
+          digest = Devise::Encryptor.digest(User, password)
+          mutex.synchronize { hashes[line] = digest }
+        rescue ThreadError
+          break
+        rescue StandardError => e
+          Thread.current[:employee_import_error] = e
+          break
+        end
+      end
+    end
+    threads.each(&:join)
+    error = threads.filter_map { |thread| thread[:employee_import_error] }.first
+    raise error if error
+
+    hashes
+  end
+
+  def assign_password(user, password, prehashed_password)
+    # prehashed_password only comes from prehash_passwords above; invalid short
+    # values use the normal assignment so the model reports its validation error.
+    if prehashed_password
+      # New records still validate the virtual password's presence/length. Keep
+      # that value in Devise's normal virtual attribute, while reusing the
+      # already-computed digest instead of hashing it again.
+      user.instance_variable_set(:@password, password) unless user.persisted?
+      user.encrypted_password = prehashed_password
+    else
+      user.password = password
+    end
+  end
+
+  def password_value(row)
+    pw = row[:password]
+    pw = pw.to_i if pw.is_a?(Float) && pw == pw.to_i   # Excel hands 7860 back as 7860.0
+    pw.to_s.strip.presence
   end
 
   def profile(row, user)

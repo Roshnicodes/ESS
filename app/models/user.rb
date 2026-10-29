@@ -10,6 +10,7 @@ class User < ApplicationRecord
     pd_finance: "pd_finance",
     admin: "admin"
   }.freeze
+  PASSWORD_MINIMUM_LENGTH = 3
   enum :role, ROLES, default: :employee, validate: true
 
   belongs_to :location, optional: true
@@ -30,7 +31,9 @@ class User < ApplicationRecord
   validates :email, uniqueness: { case_sensitive: false }, allow_nil: true,
                     format: { with: URI::MailTo::EMAIL_REGEXP }
   validates :name, presence: true, length: { maximum: 150 }
-  validates :password, presence: true, length: { minimum: 6 }, confirmation: true, if: :password_required?
+  # HR's existing employee-password sheet includes three- and four-character
+  # passwords, so keep the application rule aligned with that approved list.
+  validates :password, presence: true, length: { minimum: PASSWORD_MINIMUM_LENGTH }, confirmation: true, if: :password_required?
   validate  :manager_not_self
 
   after_update_commit :reassign_pending_finance_claims!, if: :saved_change_to_finance_approver_id?
