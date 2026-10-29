@@ -4,7 +4,7 @@ require "caxlsx"
 class EmployeeExport
   HEADERS = [ "Name of Employee", "Employee Code", "Work email", "Mobile number", "Date of joining", "Department",
               "Designation", "Branch", "Sub branch", "Level", "Reporting manager", "L-1", "Name", "Functional manager",
-              "L-2", "Functional manager Name", "Finance Code", "Finance Name" ].freeze
+              "L-2", "Functional manager Name", "Finance Code", "Finance Name", "Password" ].freeze
 
   def initialize(users) = @users = users
 
@@ -17,7 +17,7 @@ class EmployeeExport
         l1, l2, fin = u.reporting_manager, u.l2_manager, u.finance_approver
         ws.add_row [ u.name, u.emp_code, u.email, u.mobile, u.date_of_joining&.strftime("%d/%m/%Y"), u.department,
                      u.designation, u.branch, u.sub_branch, u.level, l1&.emp_code, l1&.emp_code, l1&.name,
-                     l2&.emp_code, l2&.emp_code, l2&.name, fin&.emp_code, fin&.name ],
+                     l2&.emp_code, l2&.emp_code, l2&.name, fin&.emp_code, fin&.name, nil ],
                    types: Array.new(HEADERS.size, :string)
       end
       ws.sheet_view.pane { |p| p.top_left_cell = "A2"; p.state = :frozen; p.y_split = 1 }

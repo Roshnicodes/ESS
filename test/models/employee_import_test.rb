@@ -42,6 +42,65 @@ class EmployeeImportTest < ActiveSupport::TestCase
     File.delete(path) if path && File.exist?(path)
   end
 
+  # Password column: blank keeps the current password, a value sets it – and it
+  # works even in add_only mode, where nothing else about the row is touched.
+  test "password column sets the login password, blank leaves it alone" do
+    hr = user("HR001")
+    existing = user("AM001")
+    existing.update!(password: "oldpass1")
+    path = xlsx([
+      [ "New Person", 7701, "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "fresh123" ],
+      [ "Swapnil Amne", "AM001", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "newpass9" ],
+      [ "No Password", 7702, "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "" ]
+    ])
+    res = EmployeeImport.new(path, by: hr).call
+
+    assert_equal 2, res.passwords
+    assert_empty res.errors
+    assert User.find_by!(emp_code: "7701").valid_password?("fresh123")
+    assert existing.reload.valid_password?("newpass9"), "add_only mode must still honour the Password column"
+    assert User.find_by!(emp_code: "7702").valid_password?("123456")   # blank → the default for a new employee
+  ensure
+    File.delete(path) if path && File.exist?(path)
+  end
+
+  test "a password under six characters is refused and the old one kept" do
+    hr = user("HR001")
+    existing = user("AM001")
+    existing.update!(password: "oldpass1")
+    path = xlsx([ [ "Swapnil Amne", "AM001", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", 7860 ] ])
+    res = EmployeeImport.new(path, by: hr).call
+
+    assert_equal 0, res.passwords
+    assert_match(/too short/, res.errors.join)
+    assert existing.reload.valid_password?("oldpass1")
+  ensure
+    File.delete(path) if path && File.exist?(path)
+  end
+
+  test "a numeric password keeps the digits Excel turned into a float" do
+    hr = user("HR001")
+    path = xlsx([ [ "Numeric Pass", 7703, "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", 90901234 ] ])
+    EmployeeImport.new(path, by: hr).call
+    assert User.find_by!(emp_code: "7703").valid_password?("90901234")
+  ensure
+    File.delete(path) if path && File.exist?(path)
+  end
+
+  test "a non-admin cannot reset an admin password through the sheet" do
+    hr = user("HR001")
+    admin = User.find_by!(role: "admin")
+    admin.update!(password: "adminpass1")
+    path = xlsx([ [ admin.name, admin.emp_code, "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "hacked99" ] ])
+    res = EmployeeImport.new(path, by: hr).call
+
+    assert_equal 0, res.passwords
+    assert_match(/only an admin/, res.errors.join)
+    assert admin.reload.valid_password?("adminpass1")
+  ensure
+    File.delete(path) if path && File.exist?(path)
+  end
+
   test "export downloads an xlsx with the same headers" do
     data = EmployeeExport.new(User.all).to_xlsx
     path = Rails.root.join("tmp/export_test.xlsx").to_s

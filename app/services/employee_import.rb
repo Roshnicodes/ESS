@@ -20,11 +20,12 @@ class EmployeeImport
     level:           [ "level" ],
     l1_code:         [ "l-1", "l1 code", "l1", "reporting manager" ],
     l2_code:         [ "l-2", "l2 code", "l2", "functional manager" ],
-    finance_code:    [ "finance code", "finance", "pd finance" ]
+    finance_code:    [ "finance code", "finance", "pd finance" ],
+    password:        [ "password", "new password", "login password" ]
   }.freeze
   NA = [ "", "#N/A", "N/A", "NA", "-", "0" ].freeze
 
-  Result = Struct.new(:sheet, :created, :updated, :skipped, :managers_linked, :errors, keyword_init: true) do
+  Result = Struct.new(:sheet, :created, :updated, :skipped, :managers_linked, :passwords, :errors, keyword_init: true) do
     def total = created + updated + skipped
   end
 
@@ -52,7 +53,7 @@ class EmployeeImport
       row.merge(line: r) if row[:emp_code]
     end
 
-    res = Result.new(sheet: sheet_name, created: 0, updated: 0, skipped: 0, managers_linked: 0, errors: [])
+    res = Result.new(sheet: sheet_name, created: 0, updated: 0, skipped: 0, managers_linked: 0, passwords: 0, errors: [])
     touched = []
     existing = []
     User.transaction do
@@ -61,13 +62,20 @@ class EmployeeImport
         if user && @mode == :add_only
           res.skipped += 1
           existing << [ user, row ]   # only blank L1/L2 may be filled
+          reset_password(user, row, res)   # …and a password typed in the sheet
           next
         end
         is_new = user.nil?
         user ||= User.new(emp_code: row[:emp_code], role: "employee", password: self.class.default_password(row[:emp_code]))
         user.assign_attributes(profile(row, user))
+        wanted = password_for(user, row, res)
+        user.password = wanted if wanted
         if user.save
           user.log_activity!(is_new ? :user_imported : :user_import_updated, actor: @by, details: { line: row[:line] })
+          if wanted
+            user.log_activity!(:user_password_set, actor: @by, details: { line: row[:line] })
+            res.passwords += 1
+          end
           is_new ? res.created += 1 : res.updated += 1
           touched << [ user, row ]
         else
@@ -117,6 +125,30 @@ class EmployeeImport
         [ cols.size, name, r, cols ] if cols.key?(:emp_code) && cols.key?(:name)
       end.max_by(&:first)
     end.max_by(&:first)&.drop(1)
+  end
+
+  # Password column: blank leaves the employee's current password alone.  The
+  # value is never logged – only the fact that it was set.  An admin account
+  # can only be reset by another admin, so the sheet is not a way up.
+  def password_for(user, row, res)
+    pw = row[:password]
+    pw = pw.to_i if pw.is_a?(Float) && pw == pw.to_i   # Excel hands 7860 back as 7860.0
+    pw = pw.to_s.strip.presence or return nil
+    return pw unless user.persisted? && user.admin? && !@by.admin?
+    res.errors << "Row #{row[:line]} (#{row[:emp_code]}): only an admin can change an admin's password"
+    nil
+  end
+
+  def reset_password(user, row, res)
+    pw = password_for(user, row, res) or return
+    user.password = pw
+    if user.save
+      user.log_activity!(:user_password_set, actor: @by, details: { line: row[:line] })
+      res.passwords += 1
+    else
+      res.errors << "Row #{row[:line]} (#{row[:emp_code]}): password not changed – #{user.errors.full_messages.to_sentence}"
+      user.reload
+    end
   end
 
   def profile(row, user)

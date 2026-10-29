@@ -26,7 +26,9 @@ class Masters::UsersController < ApplicationController
     end
     mode = params[:update_existing] == "1" ? :update : :add_only
     @result = EmployeeImport.new(file.tempfile.path, by: current_user, mode: mode, original_filename: file.original_filename).call
-    flash[:notice] = "Sheet “#{@result.sheet}”: #{@result.created} new added, #{@result.updated} updated, #{@result.skipped} already existed (unchanged), L1/L2 set for #{@result.managers_linked}."
+    note = "Sheet “#{@result.sheet}”: #{@result.created} new added, #{@result.updated} updated, #{@result.skipped} already existed (unchanged), L1/L2 set for #{@result.managers_linked}."
+    note += " Password set for #{@result.passwords} employee#{"s" unless @result.passwords == 1}." if @result.passwords.positive?
+    flash[:notice] = note
     flash[:import_errors] = @result.errors.first(30) if @result.errors.any?
     redirect_to masters_users_path
   rescue ArgumentError, Zip::Error => e
