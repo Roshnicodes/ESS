@@ -1,5 +1,5 @@
 <% content_for :title, "Login" %>
-<% photo = Rails.application.assets.load_path.find("login-rural-farmer.jpg") ? "login-rural-farmer.jpg" : "login-scene.svg" %>
+<% photo = %w[login-watershed.jpg login-rural-farmer.jpg login-scene.svg].find { |f| Rails.application.assets.load_path.find(f) } %>
 <div class="login-scene">
   <div class="login-photo" style="background-image: url('<%= image_path(photo) %>')" aria-hidden="true"></div>
 

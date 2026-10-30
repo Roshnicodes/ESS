@@ -90,6 +90,8 @@ production:
     database: ess_production
     username: ess
     password: <%= ENV["ESS_DATABASE_PASSWORD"] %>
+    # TCP to the local PostgreSQL (password login); the unix socket would use "peer" auth and fail for user ess
+    host: <%= ENV.fetch("ESS_DATABASE_HOST", "127.0.0.1") %>
   cache:
     <<: *primary_production
     database: ess_production_cache
