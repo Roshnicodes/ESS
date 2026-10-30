@@ -192,6 +192,39 @@ ALTER SEQUENCE public.activity_logs_id_seq OWNED BY public.activity_logs.id;
 
 
 --
+-- Name: app_settings; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.app_settings (
+    id bigint NOT NULL,
+    key character varying(100) NOT NULL,
+    value text,
+    updated_by_id bigint,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: app_settings_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.app_settings_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: app_settings_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.app_settings_id_seq OWNED BY public.app_settings.id;
+
+
+--
 -- Name: ar_internal_metadata; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1317,6 +1350,13 @@ ALTER TABLE ONLY public.activity_logs ALTER COLUMN id SET DEFAULT nextval('publi
 
 
 --
+-- Name: app_settings id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.app_settings ALTER COLUMN id SET DEFAULT nextval('public.app_settings_id_seq'::regclass);
+
+
+--
 -- Name: bank_accounts id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -1521,6 +1561,14 @@ ALTER TABLE ONLY public.active_storage_variant_records
 
 ALTER TABLE ONLY public.activity_logs
     ADD CONSTRAINT activity_logs_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: app_settings app_settings_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.app_settings
+    ADD CONSTRAINT app_settings_pkey PRIMARY KEY (id);
 
 
 --
@@ -1962,6 +2010,13 @@ CREATE INDEX index_activity_logs_on_action_and_created_at ON public.activity_log
 --
 
 CREATE INDEX index_activity_logs_on_actor_id_and_created_at ON public.activity_logs USING btree (actor_id, created_at);
+
+
+--
+-- Name: index_app_settings_on_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_app_settings_on_key ON public.app_settings USING btree (key);
 
 
 --
@@ -3179,6 +3234,14 @@ ALTER TABLE ONLY public.tour_claims
 
 
 --
+-- Name: app_settings fk_rails_f31be33b10; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.app_settings
+    ADD CONSTRAINT fk_rails_f31be33b10 FOREIGN KEY (updated_by_id) REFERENCES public.users(id);
+
+
+--
 -- Name: tour_claims fk_rails_fc59a6d7c3; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3201,6 +3264,7 @@ ALTER TABLE ONLY public.projects
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261030120001'),
 ('20261030110001'),
 ('20261030100001'),
 ('20261029100001'),

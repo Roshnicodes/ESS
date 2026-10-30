@@ -5,7 +5,7 @@ import { Controller } from "@hotwired/stimulus"
 //   B       Two/Four Wheeler: KM = meter to − meter from, amount column = ₹/km, total = KM × rate − deduction
 //           Public Transport: meters locked at 0, KM and total typed
 //   C       days from From / To date-time (same hours rule as D), rate auto-filled from the chosen city's
-//           rate = the city's rate in the City master (same as DA; typeable only when the city has none), amount = rate × days
+//           rate typed by the employee, amount = rate × days
 //   D       rate auto-filled from arrival city (editable), amount = days × DA rate × applicable % / 100
 //   Grand total = Σ section sub totals, Balance = grand total − advance
 export default class extends Controller {
@@ -80,14 +80,7 @@ export default class extends Controller {
       const rateEl = q("rate_in")
       const cityRate = city?.dataset.rate
       if (kind === "lodging") {
-        // Lodging rate comes from the City master; only cities without a configured rate stay typeable.
-        const fromMaster = city?.dataset.masterRate === "true"
-        rateEl.readOnly = fromMaster
-        rateEl.tabIndex = fromMaster ? -1 : 0
-        rateEl.classList.toggle("bg-slate-50", fromMaster)
-        rateEl.placeholder = fromMaster || !city?.value ? "city rate" : "Enter rate"   // city without a rate → employee types it → employee types it
-        if (fromMaster) rateEl.value = cityRate || "0"
-        else if (changed === "city") rateEl.value = ""
+        // lodging rate is typed by the employee – only DA takes the city rate from the master
       } else if (changed === "city" && cityRate) {
         rateEl.value = cityRate
       }

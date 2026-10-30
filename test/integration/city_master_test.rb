@@ -43,7 +43,7 @@ class CityMasterTest < ActionDispatch::IntegrationTest
     assert_match "0 new cities added, 0 updated", flash[:notice]
 
     csv = Tempfile.new([ "cities", ".csv" ])
-    csv.write("City,Rate (DA & Lodging)\nIndore,650\nNew Town X,575\n"); csv.close
+    csv.write("City,DA Rate\nIndore,650\nNew Town X,575\n"); csv.close
     post import_masters_cities_path, params: { file: Rack::Test::UploadedFile.new(csv.path, "text/csv") }
     assert_match "1 new cities added, 1 updated", flash[:notice]
     assert_equal 650, City.find_by!(name: "Indore").da_rate

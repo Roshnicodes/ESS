@@ -3,7 +3,7 @@
   <div class="card-body grid gap-4 sm:grid-cols-2">
     <div><%= f.label :name, "City", class: "lbl" %><%= f.text_field :name, class: "inp", required: true, maxlength: 100, placeholder: "e.g. Sehore" %></div>
     <div><%= f.label :state, "State (optional)", class: "lbl" %><%= f.text_field :state, class: "inp", maxlength: 60, placeholder: "e.g. Madhya Pradesh" %></div>
-    <div><%= f.label :da_rate, "Rate per day (₹) – used for DA and Lodging", class: "lbl" %>
+    <div><%= f.label :da_rate, "DA Rate per day (₹)", class: "lbl" %>
       <div class="relative"><span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-400">₹</span>
         <%= f.number_field :da_rate, step: "0.01", min: 0, required: true, class: "inp pl-7", placeholder: "550" %></div></div>
     <label class="flex cursor-pointer items-start gap-3 self-end rounded-xl border border-slate-200/80 bg-white/50 p-3 has-[:checked]:border-brand-400 has-[:checked]:bg-brand-50/60">

@@ -1,7 +1,7 @@
 require "roo"
 
-# Upload of the City rate sheet (one rate per city, used for DA and Lodging) (.xlsx / .csv) – one transaction, all cities loaded once.
-#   City found (any case)  → DA / Lodging / State / Active updated from the sheet (blank cell = keep)
+# Upload of the City & DA rate sheet (.xlsx / .csv) – one transaction, all cities loaded once.
+#   City found (any case)  → DA rate / State / Active updated from the sheet (blank cell = keep)
 #   City not found         → added (DA rate required)
 class CityRateImport
   HEADERS = {

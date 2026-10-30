@@ -32,6 +32,11 @@
     <% end %>
   <% end %>
 
+  <div class="nav-head">IT Tools</div>
+  <% [["guest_house", "Guest House", :building], ["help_desk", "Help Desk", :info], ["training", "Training", :sparkles], ["geohub", "GeoHub", :map], ["old_ess", "Old ESS", :home]].each do |key, label, ic| %>
+    <%= link_to it_tool_path(key), class: "nav-link", target: "_blank", rel: "noopener", title: "Opens #{label} – no separate login needed" do %><%= icon(ic) %><span class="truncate"><%= label %></span><%= icon(:arrow_right, "ml-auto h-3.5 w-3.5 -rotate-45 opacity-50") %><% end %>
+  <% end %>
+
   <div class="nav-head">Settings</div>
   <%= link.("Bank Details", account_bank_accounts_path, :banknotes) %>
   <%= link.("Change Password", edit_account_password_path, :lock) %>
@@ -44,6 +49,7 @@
     <%= link.("Local Claim Cutoff Day", masters_claim_cutoff_rules_path, :calendar) if can?(:manage, ClaimCutoffRule) %>
     <%= link.("Employee List", masters_users_path, :users) if can?(:create, User) %>
     <%= link.("All Tours", masters_all_tours_path, :map) if current_user.admin? %>
+    <%= link.("IT Tools Settings", masters_it_tool_settings_path, :cog) if current_user.admin? %>
     <%= link.("Project BLI Upload", masters_finance_codes_path, :clipboard) if current_user.admin? %>
   <% end %>
 </nav>

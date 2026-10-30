@@ -1,8 +1,8 @@
 require "caxlsx"
 
-# City rate list (one rate per city, used for DA and Lodging) – download, change and upload back.
+# City & DA rate list – download, change and upload back (lodging rate is typed by the employee).
 class CityRateExport
-  HEADERS = [ "City", "State", "Rate (DA & Lodging)", "Active" ].freeze
+  HEADERS = [ "City", "State", "DA Rate", "Active" ].freeze
 
   def initialize(cities) = @cities = cities
 

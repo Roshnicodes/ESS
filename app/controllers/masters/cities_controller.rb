@@ -48,9 +48,9 @@ class Masters::CitiesController < ApplicationController
   end
 
 
-  # Download Excel: City, State, Rate (DA & Lodging), Active – fill / change and upload back
+  # Download Excel: City, State, DA Rate, Active – fill / change and upload back
   def export
-    send_data CityRateExport.new(City.ordered).to_xlsx, filename: "city_da_lodging_rates_#{Date.current}.xlsx",
+    send_data CityRateExport.new(City.ordered).to_xlsx, filename: "city_da_rates_#{Date.current}.xlsx",
               type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
   end
 

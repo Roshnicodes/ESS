@@ -45,20 +45,17 @@ class ClaimCalculationTest < ActiveSupport::TestCase
       from_date: @tour.from_date.to_time + 12.hours, to_date: @tour.to_date.to_time + 20.hours, rate: 900)
     @claim.save!
     assert_equal 2.5, l.no_of_days                  # 12:00 day 1 → 20:00 day 3 = 2 days 8 h → 2 + ½
-    assert_equal l.city.da_rate, l.rate             # city rate (same as DA), typed 900 ignored
-    assert_equal (2.5 * l.city.da_rate).round(2), l.amount
+    assert_equal 900, l.rate                        # lodging rate is what the employee typed
+    assert_equal 2250, l.amount
   end
 
-  test "lodging rate comes from the selected city master (same rate as DA)" do
+  test "lodging rate is entered by the employee – the city's DA rate is not used" do
     city = City.find_by!(name: "Jhabua")
-    city.update!(da_rate: 1_200)
     l = @claim.claim_lodgings.build(lodging_date: @tour.from_date, city: city,
-      from_date: @tour.from_date.to_time + 10.hours, to_date: @tour.from_date.to_time + 20.hours, rate: 1)
-
+      from_date: @tour.from_date.to_time + 10.hours, to_date: @tour.from_date.to_time + 20.hours, rate: 1_200)
     @claim.save!
-
     assert_equal 1_200, l.rate
-    assert_equal 1_200, l.amount
+    assert_equal 1_200, l.amount                     # 10 h = 1 day
   end
 
   test "DA = days x city DA rate x applicable %" do
@@ -113,14 +110,16 @@ class ClaimCalculationTest < ActiveSupport::TestCase
     assert @claim.blocked_words_removed?
   end
 
-  test "lodging uses the city's DA rate (typed value ignored)" do
+  test "lodging days from date-time × typed rate; DA keeps the city master rate" do
     city = City.find_by!(name: "Jhabua")
-    city.update!(da_rate: 550, lodging_rate: 9_999)          # lodging_rate is not used any more
-    l = @claim.claim_lodgings.build(lodging_date: @tour.from_date, city: city, rate: 99,
+    l = @claim.claim_lodgings.build(lodging_date: @tour.from_date, city: city, rate: 700,
       from_date: @tour.from_date.to_time + 10.hours, to_date: @tour.from_date.to_time + 1.day + 18.hours)
+    d = @claim.claim_daily_allowances.build(departure_city: "Bhopal", city: city, da_rate: 1,
+      departure_at: @tour.from_date.to_time + 10.hours, arrival_at: @tour.from_date.to_time + 1.day + 18.hours, applicable_percent: 100)
     @claim.save!
-    assert_equal 550, l.rate
+    assert_equal 700, l.rate
     assert_equal 1.5, l.no_of_days                  # 1 day 8 h
-    assert_equal 825, l.amount
+    assert_equal 1050, l.amount
+    assert_equal city.da_rate, d.da_rate             # DA rate from the master, typed 1 ignored
   end
 end
