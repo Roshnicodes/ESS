@@ -54,3 +54,29 @@ class FinanceQueryTest < ActionDispatch::IntegrationTest
     assert @claim.reload.finance_query?
   end
 end
+
+class OldMailLinkTest < ActionDispatch::IntegrationTest
+  test "mail link to a tour that no longer exists shows a message instead of 404" do
+    sign_in user("AM001")
+    get approvals_tour_path(999_999)
+    assert_redirected_to approvals_tours_path
+    assert_match "not found", flash[:alert]
+  end
+end
+
+class LocalMileageBadgeTest < ActionDispatch::IntegrationTest
+  test "local mileage with an unsent claim shows Prepared, not Approved" do
+    emp = user("1025")
+    tour = emp.tours.create!(tour_type: :local)
+    claim = TourClaim.build_for(tour)
+    claim.claim_local_travels.build(travel_date: tour.from_date, place_from: "HO", place_to: "Bank", travel_mode: mode("Two Wheeler"), meter_from: 1, meter_to: 5)
+    claim.save!
+    sign_in user("ADMIN")
+    get masters_all_tours_path
+    row = response.body[/#{Regexp.escape(emp.name)}.*?<\/tr>/m]
+    assert_match ">Prepared<", row
+    assert_no_match ">Approved<", row
+    get tour_path(tour)
+    assert_match "Prepared (claim not sent)", response.body
+  end
+end

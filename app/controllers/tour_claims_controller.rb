@@ -91,7 +91,7 @@ class TourClaimsController < ApplicationController
   def claim_params
     params.require(:tour_claim).permit(:bank_account_id, 
       :general_description, :advance_amount, :helmet_declaration,
-      claim_city_travels_attributes: LINE_AMOUNTS + %i[travel_date departure_city arrival_city travel_mode_id bill_ticket_no remark],
+      claim_city_travels_attributes: LINE_AMOUNTS + %i[travel_date departure_city arrival_city travel_mode_id ticket_quota bill_ticket_no remark],
       claim_local_travels_attributes: LINE_AMOUNTS + %i[travel_date place_from place_to travel_mode_id meter_from meter_to kilometers purpose],
       claim_lodgings_attributes: LINE_AMOUNTS + %i[lodging_date city_id place_name from_date to_date no_of_days rate remark],
       claim_daily_allowances_attributes: LINE_AMOUNTS + %i[departure_city departure_at city_id arrival_city_name arrival_at no_of_days da_rate applicable_percent],

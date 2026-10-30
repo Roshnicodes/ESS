@@ -15,6 +15,17 @@ module ApplicationHelper
 
   STATUS_LABELS = { "submitted" => "Pending L1", "draft" => "Prepared", "l1_approved" => "Forwarded to L2", "l2_approved" => "Forwarded for extra approval", "finance_pending" => "Forwarded to PD Finance", "finance_query" => "Finance query", "extra_pending" => "Extra approval" }.freeze
 
+  # Tour badge. A Local Mileage is self-sanctioned the moment it is created, so it follows its claim:
+  # "Prepared" until the claim is sent, "Returned" if sent back – not "Approved".
+  def tour_status_badge(tour, label: nil)
+    if tour.type_local? && tour.approved?
+      claim = tour.tour_claim
+      return status_badge("draft", label: "Prepared") if claim.nil? || claim.draft?
+      return status_badge("returned") if claim.returned?
+    end
+    status_badge(tour.status, label: label)
+  end
+
   def status_badge(status, label: nil)
     tag.span(label || STATUS_LABELS.fetch(status.to_s, status.to_s.humanize), class: "badge badge-dot #{STATUS_COLORS[status.to_s]}")
   end

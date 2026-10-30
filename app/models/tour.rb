@@ -154,7 +154,12 @@ class Tour < ApplicationRecord
     when "submitted"   then "Pending with L1 – #{approver}"
     when "l1_approved" then "Forwarded to L2 – #{l2_approver}"
     when "l2_approved" then "Forwarded to #{l3_label}"
-    when "approved"    then type_local? ? "Self-sanctioned" : "Approved"
+    when "approved"
+      if type_local?
+        tour_claim.nil? || tour_claim.draft? ? "Prepared (claim not sent)" : "Self-sanctioned"
+      else
+        "Approved"
+      end
     when "returned"    then "Returned by #{returned_by} – correct & send again"
     when "rejected"    then "Rejected by #{decided_by} (final)"
     when "cancelled"   then "Cancelled"

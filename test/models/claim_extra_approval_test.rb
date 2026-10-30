@@ -114,3 +114,34 @@ class LocalMileageExtraApprovalTest < ActiveSupport::TestCase
     assert_equal 1, adm.notifications.where(kind: "claim_info").count
   end
 end
+
+class ClaimTatkalTest < ActiveSupport::TestCase
+  test "A. Travel train on Tatkal adds the COO step; Normal does not; non-train is always Normal" do
+    emp = user("1025"); l1 = emp.reporting_manager
+    emp.update!(l2_manager: nil)
+    coo = User.create!(emp_code: "COOT9", name: "Chief Ops T", designation: "COO", password: "123456")
+    sl = TravelMode.find_or_create_by!(name: "Train(SL)") { |m| m.category = "public" }
+    sl.update!(is_train: true, for_city_travel: true, active: true)
+    sl.set_approvers!([], [], [ coo.id ])
+    bus = TravelMode.find_or_create_by!(name: "Bus") { |m| m.category = "public" }
+    t = emp.tours.create!(send_now: true, from_date: Date.current - 5, to_date: Date.current - 4,
+      tour_visits_attributes: [ { visit_date: Date.current - 5, place: "Sehore", planned_activity: "Mtg", travel_mode_id: bus.id } ])
+    t.approve!(by: l1, remark: "ok")
+
+    c = with_tasks(TourClaim.build_for(t))
+    c.claim_city_travels.build(travel_date: t.from_date, departure_city: "Bhopal", arrival_city: "Delhi", travel_mode: sl, ticket_quota: "normal", amount: 500)
+    c.save!
+    c.submit!(by: emp)
+    assert_empty c.approval_steps, "Normal ticket – no extra step"
+    c.return!(by: l1, remark: "fix")
+
+    c.claim_city_travels.first.update!(ticket_quota: "tatkal")
+    c.reload.submit!(by: emp)
+    assert_equal [ coo ], c.approval_steps.map(&:approver)
+    assert_equal "Train(SL) – Tatkal", c.extra_reason
+
+    row = c.claim_city_travels.build(travel_date: t.from_date, departure_city: "A", arrival_city: "B", travel_mode: bus, ticket_quota: "tatkal", amount: 10)
+    row.valid?
+    assert_equal "normal", row.ticket_quota
+  end
+end

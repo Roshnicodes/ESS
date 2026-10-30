@@ -28,7 +28,12 @@ class ActiveSupport::TestCase
 
   # "Tasks Accomplished" is mandatory in the travel report before a claim is sent
   def with_tasks(claim)
-    claim.claim_visit_reports.each { |r| r.tasks_accomplished ||= "Field visit done" }
+    claim.claim_visit_reports.each do |r|
+      r.tasks_accomplished ||= "Field visit done"
+      r.action_points ||= "Follow up with SHG"
+      r.time_frame ||= "1 week"
+      r.remark ||= "OK"
+    end
     claim
   end
   def mode(name) = TravelMode.find_by!(name: name)

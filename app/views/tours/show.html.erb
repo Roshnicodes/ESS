@@ -13,7 +13,7 @@
   <%# summary line %>
   <div class="flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-white/70 px-4 py-3 sm:px-5">
     <span class="text-base font-bold text-slate-900"><%= tour_type_label(@tour) %></span>
-    <%= status_badge(@tour.status, label: { "draft" => "Saved", "submitted" => "Pending L1", "l1_approved" => "Forwarded to L2", "l2_approved" => "Forwarded to #{@tour.l3_label}" }[@tour.status]) %>
+    <%= tour_status_badge(@tour, label: { "draft" => "Saved", "submitted" => "Pending L1", "l1_approved" => "Forwarded to L2", "l2_approved" => "Forwarded to #{@tour.l3_label}" }[@tour.status]) %>
     <span class="text-sm text-slate-700"><%= icon(:calendar, "mr-1 inline h-4 w-4 text-slate-400") %><%= @tour.duration_label %> <span class="text-slate-400">(<%= @tour.days %>d)</span></span>
     <% unless @tour.type_local? %>
       <span class="flex flex-wrap items-center"><%= approver_chain(@tour.approver, @tour.l2_approver, @tour.approval_steps) %></span>

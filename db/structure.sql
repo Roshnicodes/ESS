@@ -438,7 +438,9 @@ CREATE TABLE public.claim_city_travels (
     total_amount numeric(12,2) DEFAULT 0.0 NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    ticket_quota character varying(10) DEFAULT 'normal'::character varying NOT NULL,
     CONSTRAINT chk_claim_city_travels_amounts CHECK (((amount >= (0)::numeric) AND (deduction_amount >= (0)::numeric) AND (deduction_amount <= amount))),
+    CONSTRAINT chk_claim_city_travels_quota CHECK (((ticket_quota)::text = ANY ((ARRAY['normal'::character varying, 'tatkal'::character varying])::text[]))),
     CONSTRAINT chk_claim_city_travels_total CHECK ((total_amount = (amount - deduction_amount)))
 );
 
@@ -3264,6 +3266,7 @@ ALTER TABLE ONLY public.projects
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261030160001'),
 ('20261030120001'),
 ('20261030110001'),
 ('20261030100001'),

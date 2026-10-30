@@ -67,7 +67,7 @@ class TourFlowTest < ActionDispatch::IntegrationTest
     post tour_claim_path(tour), params: { commit_action: "submit", tour_claim: { advance_amount: 100, helmet_declaration: "1",
       claim_city_travels_attributes: { "0" => { travel_date: tour.from_date, departure_city: "Bhopal", arrival_city: "Jhabua", travel_mode_id: mode("Bus").id, amount: 450 } },
       claim_local_travels_attributes: { "0" => { travel_date: tour.from_date, place_from: "Jhabua", place_to: "Village", travel_mode_id: mode("Two Wheeler").id, meter_from: 10, meter_to: 30 } },
-      claim_visit_reports_attributes: (tour.from_date..tour.to_date).each_with_index.to_h { |day, i| [ i.to_s, { visit_date: day, place_visited: "Jhabua", tasks_accomplished: "SHG meeting" } ] } } }
+      claim_visit_reports_attributes: (tour.from_date..tour.to_date).each_with_index.to_h { |day, i| [ i.to_s, { visit_date: day, place_visited: "Jhabua", tasks_accomplished: "SHG meeting", action_points: "Follow up", time_frame: "1 week", remark: "OK" } ] } } }
     claim = tour.reload.tour_claim
     assert_equal 3, claim.claim_visit_reports.count, "day rows are not duplicated"
     assert claim.submitted?, claim.errors.full_messages.inspect

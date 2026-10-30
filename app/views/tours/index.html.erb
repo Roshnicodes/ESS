@@ -27,7 +27,7 @@
           <% else %>Pending with L1 <b><%= t.approver %></b><%= tag.div(["then", (t.l2_approver && "L2 #{t.l2_approver}"), (t.approval_steps.any? && t.approval_steps.map(&:label).join(" → "))].compact.join(" "), class: "muted") if t.l2_approver || t.l3_approver %><% end %>
           </div>
         </td>
-        <td data-label="Tour"><%= status_badge(t.status, label: { "draft" => "Saved", "l1_approved" => "Forwarded to L2", "l2_approved" => "Forwarded to #{t.l3_label}", "submitted" => "Pending L1" }[t.status]) %></td>
+        <td data-label="Tour"><%= tour_status_badge(t, label: { "draft" => "Saved", "l1_approved" => "Forwarded to L2", "l2_approved" => "Forwarded to #{t.l3_label}", "submitted" => "Pending L1" }[t.status]) %></td>
         <td data-label="TA/DA Comment" class="max-w-56 text-xs text-slate-600"><%= c&.return_remark.presence || c&.reject_remark.presence || c&.activity_logs&.where&.not(remark: nil)&.last&.remark || "NA" %></td>
         <td data-label="TA/DA"><% if c %><div><%= status_badge(c.status) %><div class="muted mt-1"><%= c.stage_label %></div></div><% else %><span class="muted">NA</span><% end %></td>
         <td data-label="Action" class="no-print">

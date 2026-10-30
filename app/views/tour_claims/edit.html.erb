@@ -72,7 +72,7 @@
       <div class="card-head"><span class="card-title"><span class="icon-chip bg-slate-100 text-slate-600"><%= icon(:clipboard) %></span>Brief detail of travel</span>
         <button type="button" class="btn-soft btn-xs" data-action="nested-rows#add"><%= icon(:plus) %> Add</button></div>
       <div class="claim-lines-wrap"><table class="tbl tbl-edit tbl-stack claim-lines">
-        <thead><tr><th>Date</th><th>Place Visited</th><th>Tour Visit Created Date</th><th>Tasks Accomplished <span class="text-rose-500">*</span></th><th>Action Points from the Visit</th><th>Time frame</th><th>Remark</th><th></th></tr></thead>
+        <thead><tr><th>Date</th><th>Place Visited</th><th>Tour Visit Created Date</th><th>Tasks Accomplished <span class="text-rose-500">*</span></th><th>Action Points from the Visit <span class="text-rose-500">*</span></th><th>Time frame <span class="text-rose-500">*</span></th><th>Remark <span class="text-rose-500">*</span></th><th></th></tr></thead>
         <tbody data-nested-rows-target="container">
           <%= f.fields_for :claim_visit_reports do |rf| %><%= render "tour_claims/report_fields", f: rf %><% end %>
         </tbody>

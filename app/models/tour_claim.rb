@@ -152,6 +152,11 @@ class TourClaim < ApplicationRecord
       chain = m.approver_chain.map { |a| [ a.user_id, a.position ] }
       needs << [ m.name, chain ] if chain.any?
     end
+    # Tatkal train ticket in A. Travel → that train's Tatkal approver (e.g. COO)
+    claim_city_travels.reject(&:marked_for_destruction?).select(&:tatkal?).filter_map(&:travel_mode).uniq.each do |m|
+      chain = m.tatkal_chain.map { |a| [ a.user_id, a.position ] }
+      needs << [ "#{m.name} – Tatkal", chain ] if chain.any?
+    end
     needs
   end
 
@@ -407,11 +412,15 @@ class TourClaim < ApplicationRecord
     errors.add(:base, "Expense dates must be within #{tour.duration_label}") if outside.any?
   end
 
-  # Brief detail of travel: "Tasks Accomplished" is mandatory for every row before sending (remark optional)
+  # Brief detail of travel: every column is mandatory for every row before sending (saving a draft is fine)
+  REPORT_FIELDS = { tasks_accomplished: "Tasks Accomplished", action_points: "Action Points", time_frame: "Time frame", remark: "Remark" }.freeze
+
   def reports_have_tasks
-    missing = claim_visit_reports.reject(&:marked_for_destruction?).select { |r| r.tasks_accomplished.blank? }
-    return if missing.empty?
-    errors.add(:base, "Brief detail of travel: write Tasks Accomplished for #{missing.map { |r| r.visit_date&.strftime('%d/%m/%Y') }.compact.join(', ')}")
+    claim_visit_reports.reject(&:marked_for_destruction?).each do |r|
+      blank = REPORT_FIELDS.select { |attr, _| r.public_send(attr).blank? }.values
+      next if blank.empty?
+      errors.add(:base, "Brief detail of travel (#{r.visit_date&.strftime('%d/%m/%Y')}): fill #{blank.to_sentence}")
+    end
   end
 
   def bank_account_chosen
