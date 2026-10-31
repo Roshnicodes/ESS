@@ -451,3 +451,16 @@ body.app-bg::before {
   .glass-bar .btn, .glass-bar .btn-primary, .glass-bar .btn-success, .glass-bar .btn-warning, .glass-bar .btn-light { justify-content: center; }
   .page-heading > div:last-child { width: 100%; }
 }
+
+/* ---------- rendering performance ----------
+   A backdrop blur on every input / button / card (100+ on a long claim form) and a "fixed" page
+   background exhaust the graphics memory on modest PCs: Chrome then leaves parts of the form blank
+   or shows empty "ghost" boxes while scrolling. These surfaces are already ~90% opaque, so the blur
+   was invisible – drop it here (sidebar, header and the sticky action bar keep their glass look). */
+.card, .inp, .ts-wrapper .ts-control, .btn, .btn-primary, .btn-success, .btn-warning, .btn-light, .btn-soft,
+.btn-soft-danger, .btn-danger, .btn-ghost, .tbl th, .card-head {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+.card { background: rgb(255 255 255 / .93); }
+.app-bg { background-attachment: scroll; }

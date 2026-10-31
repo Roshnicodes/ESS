@@ -5,10 +5,12 @@ const TomSelect = window.TomSelect
 // The original <select> stays in the DOM (hidden) and keeps its value, options and data-* attributes,
 // and still fires "change" – so forms, Stimulus controllers and calculations work unchanged.
 // Add data-no-search to a <select> to keep it native.
+// Selects inside the date-picker calendar (month list) stay native – a Tom Select there hid the year box
+// and made it look like only the current month could be picked.
 
 function enhance(root) {
   root.querySelectorAll?.("select:not([data-no-search]):not([multiple])").forEach((el) => {
-    if (el.tomselect || el.closest("template")) return
+    if (el.tomselect || el.closest("template") || el.closest(".flatpickr-calendar")) return
     new TomSelect(el, {
       plugins: ["dropdown_input"],
       // render the list above everything (glass cards / sticky bars create stacking contexts)
