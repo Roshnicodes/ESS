@@ -228,14 +228,16 @@
     border: 1px solid #cbd5e1 !important; font-size: 10.5px !important; vertical-align: top; }
   .tbl-stack th, .tbl-review th { background: #eef6f0 !important; color: #14532d !important; font-weight: 700; text-transform: uppercase; font-size: 9.5px !important; }
   .tbl-stack tbody td::before, .tbl-review tbody td::before { display: none !important; content: none !important; }
-  /* fit the A4 width at 100 % scale: long date-times / headings wrap inside their cell instead of pushing columns off the paper */
-  .tbl-stack th, .tbl-review th { letter-spacing: 0 !important; white-space: normal !important; }
-  .tbl-stack td, .tbl-review td, .tbl-stack td *, .tbl-review td * { white-space: normal !important; overflow-wrap: break-word !important; }
-  .tbl-stack th, .tbl-stack td, .tbl-review th, .tbl-review td { padding: 3px 4px !important; }
-  /* free-text columns may break anywhere; numbers stay on one line */
-  .tbl-review td:is([data-label*="Remark"], [data-label*="Bill"], [data-label*="Ticket"], [data-label*="Purpose"], [data-label*="Particular"], [data-label*="Tasks"], [data-label*="Action"]) { overflow-wrap: anywhere !important; }
-  .tbl-review td:is([data-label*="Amount"], [data-label*="Total"], [data-label="Deduction"], [data-label*="Rate"], [data-label*="Days"], [data-label*="KM"], [data-label*="Reading"]),
-  .tbl-review td:is([data-label*="Amount"], [data-label*="Total"], [data-label="Deduction"], [data-label*="Rate"], [data-label*="Days"], [data-label*="KM"], [data-label*="Reading"]) * { white-space: nowrap !important; }
+  /* fit the A4 width at 100 % scale, whatever the data or font: headings never break mid-word (so each column is at
+     least as wide as its heading), number / date columns stay on one line (19518.0, ₹1,704.25, 01/10/2026), and only
+     text cells may wrap – inside a word only when a value is longer than its column */
+  .tbl-stack, .tbl-review { max-width: 100% !important; }
+  .tbl-stack th, .tbl-review th { letter-spacing: 0 !important; white-space: normal !important; overflow-wrap: normal !important; word-break: normal !important; font-size: 8.5px !important; }
+  .tbl-stack td, .tbl-review td, .tbl-stack td *, .tbl-review td * { white-space: normal !important; overflow-wrap: anywhere !important; word-break: normal !important; }
+  .tbl-stack th, .tbl-stack td, .tbl-review th, .tbl-review td { padding: 3px 3px !important; }
+  .tbl-stack td, .tbl-review td { font-size: 9.5px !important; }
+  .tbl-review tbody td:is([data-label="Date"], [data-label*="Total"], [data-label*="Amount"], [data-label="Deduction"], [data-label*="Reading"], [data-label*="Rate"], [data-label="KM"], [data-label*="/km" i], [data-label*="Days"]),
+  .tbl-review tbody td:is([data-label="Date"], [data-label*="Total"], [data-label*="Amount"], [data-label="Deduction"], [data-label*="Reading"], [data-label*="Rate"], [data-label="KM"], [data-label*="/km" i], [data-label*="Days"]) * { white-space: nowrap !important; overflow-wrap: normal !important; }
   /* paper carries no action controls – only the record itself */
   .no-print, .tbl .no-print, .tbl-stack .no-print, .tbl-review .no-print { display: none !important; }
   .seal-foot { margin: 0 0 -14px; padding-right: .5rem; }
