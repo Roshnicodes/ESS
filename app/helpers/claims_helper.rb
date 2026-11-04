@@ -1,12 +1,16 @@
 module ClaimsHelper
   # Loaded once per page, shared by every row + the "add row" template (178 cities, few modes)
   def claim_cities      = @claim_cities ||= City.active.ordered.to_a
-  # A. Travel: every active mode from the master used for tours / city travel (anything HR adds shows up)
+  # A. Travel: exactly the active modes ticked "Claim A (City)" in the Mode of Travel master
   def city_travel_modes
-    @city_travel_modes ||= TravelMode.active.where("for_city_travel OR for_tour_plan").where.not(name: "NA").ordered
+    @city_travel_modes ||= TravelMode.active.where(for_city_travel: true).ordered
                                      .includes(mode_approvers: :user).to_a
   end
   def local_travel_modes = @local_travel_modes ||= TravelMode.local_travel.includes(:mileage_rates).to_a
+
+  # Dropdown list from the master + the mode an older saved row already has (if the master no longer offers it),
+  # so opening an old tour / claim never silently changes its mode.
+  def modes_with_current(modes, current) = current && !modes.include?(current) ? modes + [ current ] : modes
 
   def nd(date)  = tag.span(d(date), class: "whitespace-nowrap")
   def ndt(time) = tag.span(dt(time), class: "whitespace-nowrap")

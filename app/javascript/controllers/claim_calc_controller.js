@@ -36,6 +36,25 @@ export default class extends Controller {
     const amountEl = q("amount")
     const deduction = this.num(q("deduction")?.dataset.value)
 
+    // NA (not applicable) in A or B: nothing to fill, amount ₹0
+    if (kind === "city" || kind === "local") {
+      const na = q("mode")?.selectedOptions[0]?.dataset.na === "true"
+      row.querySelectorAll('[data-calc="metfrom"], [data-calc="metto"], [data-calc="km"], [data-calc="amount"], [data-calc="ticket"], [data-calc="purpose"]').forEach((el) => {
+        if (na) {
+          if (el.dataset.naWas === undefined) el.dataset.naWas = el.placeholder
+          el.value = ""; el.readOnly = true; el.required = false; el.placeholder = "Not needed (NA)"
+        } else if (el.dataset.naWas !== undefined) {
+          el.placeholder = el.dataset.naWas; el.readOnly = false; delete el.dataset.naWas
+        }
+      })
+      if (na) {
+        const r = q("rate"); if (r) r.value = "0.00"
+        const mt = q("metto"); if (mt) this.flag(mt, "")
+        const t = q("total"); if (t) t.textContent = this.money(0)
+        return 0
+      }
+    }
+
     if (kind === "local") {
       const opt = q("mode")?.selectedOptions[0]
       const manual = opt?.dataset.manual === "true"

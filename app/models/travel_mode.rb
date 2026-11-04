@@ -23,6 +23,9 @@ class TravelMode < ApplicationRecord
   scope :city_travel,  -> { active.where(for_city_travel: true).ordered }
   scope :local_travel, -> { active.where(for_local_travel: true).ordered }
 
+  # "NA" (not applicable) row: nothing to fill – no ticket, meters, KM or places – and the amount stays ₹0
+  def not_applicable? = name.to_s.delete("/ ").casecmp?("NA")
+
   # Rate applicable on a given date (latest effective_from <= date).
   def rate_on(date = Date.current)
     return nil unless km_based?

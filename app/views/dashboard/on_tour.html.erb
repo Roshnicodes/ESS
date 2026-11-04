@@ -13,7 +13,7 @@
       <tr class="cursor-pointer" data-action="click->dialog#open" data-dialog-id-param="tour-<%= t.id %>">
         <td data-label="Employee"><div class="flex items-center gap-2.5"><%= avatar(u, size: "h-9 w-9 text-xs") %>
           <div class="leading-tight"><b class="text-slate-900"><%= u.name %></b><div class="muted"><%= [u.designation, u.emp_code, u.location].compact_blank.join(" · ") %></div></div></div></td>
-        <td data-label="Tour" class="whitespace-nowrap"><span class="font-medium"><%= t.duration_label %></span> <span class="muted">(<%= t.days %> <%= "day".pluralize(t.days) %>)</span></td>
+        <td data-label="Tour"><span class="font-medium"><%= t.duration_label %></span><div class="muted"><%= t.days %> <%= "day".pluralize(t.days) %></div></td>
         <td data-label="Today at"><%= today_places.any? ? today_places.join(", ") : tag.span("—", class: "text-slate-400") %></td>
         <td data-label="Status"><div><%= tour_status_badge(t, label: { "submitted" => "Pending L1", "l1_approved" => "Forwarded to L2", "l2_approved" => "Forwarded to #{t.l3_label}" }[t.status]) %>
           <div class="muted mt-1"><%= t.stage_label %></div></div></td>

@@ -24,6 +24,19 @@ class ClaimCalculationTest < ActiveSupport::TestCase
     assert_equal 468.91, @claim.local_travel_total
   end
 
+  test "NA mode: nothing to fill in A or B and the amount stays zero" do
+    na = mode("NA")
+    na.update!(for_city_travel: true, for_local_travel: true, manual_total: true)   # as set in the production master
+    local = @claim.claim_local_travels.build(travel_date: @tour.from_date, travel_mode: na, kilometers: 12, amount: 190)
+    city  = @claim.claim_city_travels.build(travel_date: @tour.from_date, travel_mode: na, amount: 500)
+    assert local.valid?, local.errors.full_messages.to_sentence      # no places, no ticket ref needed
+    assert city.valid?, city.errors.full_messages.to_sentence        # no departure / arrival needed
+    assert_equal 0, local.total_amount
+    assert_equal 0, local.kilometers
+    assert_equal 0, city.total_amount
+    assert_includes TravelMode.local_travel, na
+  end
+
   test "public transport line needs its bill or ticket reference" do
     line = @claim.claim_local_travels.build(travel_date: @tour.from_date, place_from: "HO", place_to: "PAPL",
       travel_mode: mode("Public Transport"), kilometers: 12, amount: 190)
