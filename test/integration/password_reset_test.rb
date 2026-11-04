@@ -30,6 +30,7 @@ class PasswordResetTest < ActionDispatch::IntegrationTest
     params, relay_url = delivered
     assert_equal "emp1025@example.org", params["to_email"]
     assert_equal EssMailRelay.password_reset_url, relay_url
+    assert_equal "pending", params["action"]
     link = params["link"]
     token = Rack::Utils.parse_query(URI(link).query)["token"]
 

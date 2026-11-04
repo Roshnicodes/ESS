@@ -63,7 +63,9 @@ class PasswordResetsController < ApplicationController
                    "It works once and expires in #{Devise.reset_password_within.inspect}. If you did not ask for this, ignore this mail.",
       "link" => link, "employee_name" => user.name.to_s, "employee_code" => user.emp_code.to_s,
       "quarter" => "", "month" => "", "reviewer_role" => "", "reviewer_name" => "",
-      "action" => "information", "remarks" => "", "mail_type" => "password_reset"
+      # KRAI accepts `pending` for mail that needs the recipient to take an action.
+      # `information` is rejected there as an invalid ESS action.
+      "action" => "pending", "remarks" => "", "mail_type" => "password_reset"
     }
     EssMailRelay.deliver!(mail, relay_url: EssMailRelay.password_reset_url)
     user.update_columns(reset_password_token: encrypted, reset_password_sent_at: sent_at)
