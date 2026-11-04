@@ -18,6 +18,10 @@ class EssMailRelay
 
   FIELDS = %w[to_email to_name subject message link employee_name employee_code quarter month
               reviewer_role reviewer_name action remarks mail_type].freeze
+  # Password recovery must keep working even when the server was deployed without
+  # the optional notification-mail environment variable.  Keep this fallback
+  # separate from `url`: ordinary notification mail remains opt-in as before.
+  DEFAULT_PASSWORD_RESET_URL = "https://krai.asaindia.org/ess_notification.aspx".freeze
   DEFAULT_APP_URL = "https://hr.asaindia.org".freeze
   TIMEOUT_SECONDS = 15
   MAX_REDIRECTS = 3
@@ -37,6 +41,9 @@ class EssMailRelay
 
   def self.url = ENV["ESS_MAIL_RELAY_URL"].to_s.strip
   def self.enabled? = url.present?
+  def self.password_reset_url
+    ENV["ESS_PASSWORD_RESET_MAIL_RELAY_URL"].presence || url.presence || DEFAULT_PASSWORD_RESET_URL
+  end
   def self.app_url = (ENV["ESS_MAIL_APP_URL"].presence || DEFAULT_APP_URL).chomp("/")
 
   # Queues the mail for one notification; never raises.
@@ -87,14 +94,16 @@ class EssMailRelay
     m ? [ m[1], m[2] ] : [ text, nil ]
   end
 
-  def self.request_uri(params)
-    uri = URI.parse(url)
+  def self.request_uri(params, relay_url: url)
+    uri = URI.parse(relay_url)
     uri.query = URI.encode_www_form(params.slice(*FIELDS))
     uri
   end
 
-  def self.deliver!(params)
-    response, final_uri = fetch(request_uri(params))
+  def self.deliver!(params, relay_url: url)
+    raise DeliveryError, "Mail relay URL is not configured" if relay_url.blank?
+
+    response, final_uri = fetch(request_uri(params, relay_url: relay_url))
     where = "[#{final_uri.scheme}://#{final_uri.host}#{final_uri.path}]"
     raise DeliveryError, "Mail service asked for a login #{where}" if final_uri.path.to_s.downcase.match?(/login|signin/)
     raise DeliveryError, "#{failure_message(response)} #{where}" unless success?(response)

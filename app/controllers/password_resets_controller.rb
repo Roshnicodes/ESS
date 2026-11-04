@@ -1,6 +1,7 @@
 # "Forgot password?" on the login page. The employee types the Employee Code; a one-time link (valid for
-# Devise's reset_password_within, 6 hours) goes to the email registered in the Employee List, through the
-# same krai mail page every ESS notification uses. The answer never says whether the code exists.
+# Devise's reset_password_within, 6 hours) goes to the email registered in the Employee List. Unlike ordinary
+# notifications, password-reset delivery is confirmed before its token is saved: a relay outage cannot invalidate
+# an older working reset link. The answer never says whether the code exists.
 class PasswordResetsController < ApplicationController
   skip_before_action :authenticate_user!
   before_action { redirect_to authenticated_root_path if user_signed_in? }
@@ -49,13 +50,13 @@ class PasswordResetsController < ApplicationController
   end
 
   def send_link(user)
-    raw = user.send(:set_reset_password_token)
+    # Devise's set_reset_password_token saves immediately.  Generate the pair
+    # ourselves so a failed mail relay does not replace a link the employee may
+    # already have received.
+    raw, encrypted = Devise.token_generator.generate(User, :reset_password_token)
+    sent_at = Time.current
     link = "#{EssMailRelay.app_url}#{edit_password_reset_path(token: raw)}"
-    unless EssMailRelay.enabled?
-      Rails.logger.warn("Password reset for #{user.emp_code}: mail relay is off (ESS_MAIL_RELAY_URL not set)")
-      return
-    end
-    EssMailJob.perform_later(
+    mail = {
       "to_email" => user.email.to_s.strip, "to_name" => user.name.to_s,
       "subject" => "ASA ESS: Reset your password",
       "message" => "We received a request to reset your ESS password. Open the link to set a new password. " \
@@ -63,6 +64,12 @@ class PasswordResetsController < ApplicationController
       "link" => link, "employee_name" => user.name.to_s, "employee_code" => user.emp_code.to_s,
       "quarter" => "", "month" => "", "reviewer_role" => "", "reviewer_name" => "",
       "action" => "information", "remarks" => "", "mail_type" => "password_reset"
-    )
+    }
+    EssMailRelay.deliver!(mail, relay_url: EssMailRelay.password_reset_url)
+    user.update_columns(reset_password_token: encrypted, reset_password_sent_at: sent_at)
+    true
+  rescue StandardError => error
+    Rails.logger.error("Password reset mail failed for employee_code=#{user.emp_code}: #{error.class} #{error.message}")
+    false
   end
 end

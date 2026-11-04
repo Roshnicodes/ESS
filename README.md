@@ -9,6 +9,10 @@ bin/rails test
 ```
 Demo logins (dev seeds, password `Password@123`): `1025` employee · `AM001` reporting manager · `MIS001` verifier · `FIN001` PD Finance · `HR001` PD HR · `ADMIN`.
 
+## Password-reset mail
+
+Forgot-password links are delivered through KRAI at `https://krai.asaindia.org/ess_notification.aspx` by default. Set `ESS_PASSWORD_RESET_MAIL_RELAY_URL` only when that endpoint needs to be overridden. `ESS_MAIL_RELAY_URL` continues to control optional approval/claim notification mail.
+
 ## Workflow
 | Step | Who | Rule |
 |---|---|---|

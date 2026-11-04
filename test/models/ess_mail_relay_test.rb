@@ -24,6 +24,17 @@ class EssMailRelayTest < ActiveSupport::TestCase
     assert_no_enqueued_jobs(only: EssMailJob) { send_tour }
   end
 
+  test "password resets have a relay fallback without enabling ordinary notification mail" do
+    old_notification_url = ENV.delete("ESS_MAIL_RELAY_URL")
+    old_password_reset_url = ENV.delete("ESS_PASSWORD_RESET_MAIL_RELAY_URL")
+
+    refute EssMailRelay.enabled?
+    assert_equal EssMailRelay::DEFAULT_PASSWORD_RESET_URL, EssMailRelay.password_reset_url
+  ensure
+    ENV["ESS_MAIL_RELAY_URL"] = old_notification_url if old_notification_url
+    ENV["ESS_PASSWORD_RESET_MAIL_RELAY_URL"] = old_password_reset_url if old_password_reset_url
+  end
+
   test "every notification queues one mail with the tour details" do
     with_relay do
       tour = nil
