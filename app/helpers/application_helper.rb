@@ -24,6 +24,7 @@ module ApplicationHelper
       return status_badge("draft", label: "Prepared") if claim.nil? || claim.draft?
       return status_badge(claim.status) unless claim.approved?
     end
+    label ||= "Plan approved" if tour.type_tour? && tour.approved?
     status_badge(tour.status, label: label)
   end
 
@@ -141,7 +142,8 @@ module ApplicationHelper
   def tour_seal_record(tour) = tour.type_local? ? tour.tour_claim : tour
 
   # Shown on screen and on the printed copy, at the foot of the document.
-  def approval_seal(record, css: nil)
+  # top: what is stamped (e.g. "Tour Plan") so a plan's stamp is not read as the claim's approval
+  def approval_seal(record, css: nil, top: "ASA · ESS")
     return "".html_safe if record.nil?
     word, tone = SEALS[record.status.to_s]
     return "".html_safe unless word
@@ -149,7 +151,7 @@ module ApplicationHelper
     tag.div(class: [ "seal", tone, css ]) do
       tag.div(class: "seal-ring") do
         tag.div(class: "seal-core") do
-          tag.div("ASA · ESS", class: "seal-top") +
+          tag.div(top, class: "seal-top") +
             tag.div(word, class: "seal-word") +
             (who.present? ? tag.div(who, class: "seal-line") : "".html_safe) +
             (at ? tag.div(d(at), class: "seal-line") : "".html_safe)

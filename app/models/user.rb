@@ -1,7 +1,7 @@
 class User < ApplicationRecord
   include Auditable
 
-  devise :database_authenticatable, :rememberable, :trackable
+  devise :database_authenticatable, :rememberable, :trackable, :recoverable   # recoverable: Forgot password (link mailed via krai)
 
   ROLES = {
     employee: "employee",

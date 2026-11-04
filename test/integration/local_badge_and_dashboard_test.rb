@@ -31,13 +31,26 @@ class LocalBadgeAndDashboardTest < ActionDispatch::IntegrationTest
     assert_not_equal "Approved", badge
   end
 
-  test "dashboard lists the colleagues on tour today" do
-    t = @emp.tours.create!(from_date: Date.current, to_date: Date.current + 1, send_now: true,
+  test "on-tour-today page lists approved and waiting tours with status and details" do
+    ok = @emp.tours.create!(from_date: Date.current, to_date: Date.current + 1, send_now: true, general_description: "SHG review",
       tour_visits_attributes: [ { visit_date: Date.current, place: "Jhabua", planned_activity: "Visit" } ])
-    t.update_columns(status: "approved", approved_at: Time.current, decided_by_id: @l1.id)
+    ok.update_columns(status: "approved", approved_at: Time.current, decided_by_id: @l1.id)
+    other = user("AM001")
+    other.update_columns(reporting_manager_id: user("HR001").id)
+    waiting = other.tours.create!(from_date: Date.current - 1, to_date: Date.current, send_now: true,
+      tour_visits_attributes: [ { visit_date: Date.current, place: "Sehore", planned_activity: "Meeting" } ])
+    assert waiting.submitted?
+
     sign_in @l1
     get authenticated_root_path
-    assert_match 'id="on-tour-today"', response.body
+    assert_match on_tour_today_path, response.body                     # card opens the page
+    get on_tour_today_path
+    assert_response :success
     assert_match "Jhabua", response.body
+    assert_match "Sehore", response.body
+    assert_match "Plan approved", response.body
+    assert_match "Pending L1", response.body
+    assert_match %(id="tour-#{ok.id}"), response.body                  # details popup per employee
+    assert_match "SHG review", response.body
   end
 end

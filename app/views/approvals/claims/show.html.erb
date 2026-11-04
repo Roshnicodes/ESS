@@ -114,7 +114,7 @@
   <%= render "tour_claims/summary", claim: @claim %>
 <% end %>
 
-<div class="seal-foot"><%= approval_seal(@claim) %></div>
+<div class="seal-foot"><%= approval_seal(@claim, top: "Claim") %></div>
 <%= render "shared/print_signatures", rows: [ [ "Employee", @claim.user.name, @claim.submitted_at ],
       [ "L1", (@claim.l1_approved_by || @claim.l1_approver)&.name, @claim.l1_approved_at ],
       ([ "L2", (@claim.l2_approved_by || @claim.l2_approver)&.name, @claim.l2_approved_at ] if @claim.l2_approver_id),

@@ -38,6 +38,8 @@ class Tour < ApplicationRecord
   # approved tour plans whose To-Date is over and no claim made yet → red "claim due" badge
   scope :claim_due,     ->(today = Date.current) { type_tour.approved.where(to_date: ...today).where.missing(:tour_claim) }
   scope :on_tour_between, ->(from, to) { approved.type_tour.where("from_date <= ? AND to_date >= ?", to, from) }
+  # "On tour today" page: every sent outstation plan covering the day – approved or still waiting for approval
+  scope :planned_on, ->(day) { type_tour.where(status: %w[submitted l1_approved l2_approved approved]).where("from_date <= :d AND to_date >= :d", d: day) }
 
   attr_accessor :send_now   # "Save & Send for Approval" vs plain "Save"
 
@@ -159,7 +161,7 @@ class Tour < ApplicationRecord
       if type_local?
         tour_claim.nil? || tour_claim.draft? ? "Prepared (claim not sent)" : "Self-sanctioned"
       else
-        "Approved"
+        "Tour plan approved"
       end
     when "returned"    then "Returned by #{returned_by} – correct & send again"
     when "rejected"    then "Rejected by #{decided_by} (final)"

@@ -1,0 +1,19 @@
+<%# locals: (title:, subtitle:) %>
+<%# same green login backdrop with one card %>
+<% photo = %w[login-watershed.jpg login-rural-farmer.jpg login-scene.svg].find { |f| Rails.application.assets.load_path.find(f) } %>
+<div class="login-scene">
+  <div class="login-photo" style="background-image: url('<%= image_path(photo) %>')" aria-hidden="true"></div>
+  <header class="login-brand">
+    <%= image_tag "asa_logo_full.png", alt: "ASA – Ensuring livelihoods with equity & dignity" %>
+    <div class="login-brand-text leading-tight"><div class="login-brand-title">Action for Social Advancement</div></div>
+  </header>
+  <main class="login-card fade-up" aria-label="<%= title %>">
+    <div class="login-card-head">
+      <span class="icon-chip h-11 w-11 bg-emerald-50 text-emerald-700"><%= icon(:lock, "h-6 w-6") %></span>
+      <div><h1 class="!text-2xl"><%= title %></h1><p class="login-ess-full"><%= subtitle %></p></div>
+    </div>
+    <%= yield %>
+    <div class="mt-4 text-center text-sm"><%= link_to "← Back to login", new_user_session_path, class: "font-semibold text-emerald-700 hover:underline" %></div>
+  </main>
+  <div class="login-footer">© <%= Date.current.year %> ASA, Bhopal</div>
+</div>

@@ -6,8 +6,15 @@ class DashboardController < ApplicationController
     @pending_tour_approvals = Tour.pending_for(current_user).count
     @pending_claims = TourClaim.in_queue_of(current_user).count
     today = Date.current
-    @on_tour_today = Tour.on_tour_between(today, today).includes(:tour_visits, user: :location).order(:from_date).to_a
-    @on_tour_count = @on_tour_today.size
+    @on_tour_count = Tour.planned_on(today).count
     @claim_ready = tours.approved.where.missing(:tour_claim).select(&:claimable?).first(4)
+  end
+
+  # Dashboard card "Colleagues on tour today" → full list; click an employee for the tour details
+  def on_tour
+    @day = Date.current
+    @tours = Tour.planned_on(@day)
+                 .includes(:approver, :l2_approver, { approval_steps: :approver }, { tour_visits: :travel_mode }, user: :location)
+                 .order(Arel.sql("CASE WHEN tours.status = 'approved' THEN 0 ELSE 1 END"), :from_date).to_a
   end
 end
