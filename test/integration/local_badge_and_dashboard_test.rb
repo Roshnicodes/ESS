@@ -53,4 +53,22 @@ class LocalBadgeAndDashboardTest < ActionDispatch::IntegrationTest
     assert_match %(id="tour-#{ok.id}"), response.body                  # details popup per employee
     assert_match "SHG review", response.body
   end
+
+  test "outstation tour page shows the plan and its claim as two separate cards, each with its own stamp" do
+    t = @emp.tours.create!(from_date: Date.current - 3, to_date: Date.current - 2, send_now: true,
+      tour_visits_attributes: [ { visit_date: Date.current - 3, place: "Jhabua", planned_activity: "Visit" } ])
+    t.approve!(by: @l1)
+    claim = with_tasks(TourClaim.build_for(t))
+    claim.claim_incidentals.build(expense_date: t.from_date, particular: "Tea", amount: 50)
+    claim.save!
+
+    sign_in @emp
+    get tour_path(t)
+    assert_match "Tour plan history", response.body
+    assert_match "TA/DA Claim", response.body
+    assert_match "Claim history", response.body
+    assert_equal 2, response.body.scan('class="seal ').size                 # plan stamp + claim stamp
+    assert_match "Plan approved", response.body
+    assert_match "Prepared", response.body
+  end
 end
