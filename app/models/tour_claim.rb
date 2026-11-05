@@ -97,6 +97,13 @@ class TourClaim < ApplicationRecord
   # Payment Advice working lists
   scope :awaiting_payment, -> { approved.where(utr_no: nil) }
   scope :paid,             -> { approved.where.not(utr_no: nil) }
+
+  # Whose payment this person records: PD Finance / admin settle everything; a named
+  # Finance approver settles the employees HR put them on (and anything they approved).
+  def self.payable_by(user)
+    return all if user.finance?
+    where(finance_approver_id: user.id).or(where(approved_by_id: user.id))
+  end
   scope :in_queue_of, ->(u) {
     queues = where(status: "submitted", l1_approver_id: u.id).or(where(status: "l1_approved", l2_approver_id: u.id))
     queues = queues.or(where(status: "finance_pending", finance_approver_id: u.id))

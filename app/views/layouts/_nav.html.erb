@@ -9,7 +9,8 @@
   pending_tours  = tour_appr ? Tour.pending_for(current_user).count : 0
   pending_claims = claim_appr ? TourClaim.in_queue_of(current_user).group(:claim_type).count : {}
   unread_circulars = current_user.notifications.unread.where(notifiable_type: "Circular").count
-  awaiting_payment = current_user.finance? ? TourClaim.awaiting_payment.count : 0
+  pays = current_user.finance_person?
+  awaiting_payment = pays ? TourClaim.awaiting_payment.payable_by(current_user).count : 0
 %>
 <nav class="space-y-0.5">
   <%= link.("Dashboard", authenticated_root_path, :home) %>
@@ -36,7 +37,7 @@
       <%= link.("Local Mileage Approved List", approvals_claims_path(type: "local", scope: "approved"), :check_circle) %>
     <% end %>
     <%= link.("Payment Advice", payment_advices_path, :banknotes, count: awaiting_payment, alert: true,
-              title: "Approved claims waiting for the bank UTR") if current_user.finance? %>
+              title: "Approved claims waiting for the bank UTR") if pays %>
   <% end %>
 
   <%= link.("IOM / Circular", circulars_path, :megaphone, count: unread_circulars, alert: true) %>

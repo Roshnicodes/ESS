@@ -82,7 +82,7 @@ class PaymentAdviceTest < ActionDispatch::IntegrationTest
     assert_nil pending.reload.utr_no
   end
 
-  test "only PD Finance and admin may open it" do
+  test "an employee with no Finance duty cannot open it" do
     sign_in @emp
     get payment_advices_path
     assert_redirected_to authenticated_root_path
@@ -103,6 +103,38 @@ class PaymentAdviceTest < ActionDispatch::IntegrationTest
     get authenticated_root_path
     assert_no_match(/Payment Advice/, response.body)
     assert_match "app.hrone.cloud/app/request/initiate-leave", response.body
+  end
+
+  # Swapnil Amne in the live system: role "Employee", but HR made him the Finance person
+  # for a whole branch, so every claim of those employees ends with him.
+  test "a named Finance approver gets the menu and only their own employees' claims" do
+    named = user("AM001")
+    assert_equal "employee", named.role
+    # HR sets him as the Finance person on the employee (Employee master → Finance);
+    # that employee's claims then carry him as their finance approver.
+    @emp.update_columns(finance_approver_id: named.id)
+    @oct.update_columns(finance_approver_id: named.id)
+
+    sign_in named
+    get authenticated_root_path
+    assert_match "Payment Advice", response.body
+
+    get payment_advices_path
+    assert_response :success
+    assert_match @emp.name, response.body            # the employee they are Finance for
+    assert_no_match(/#{@other.name}/, response.body) # somebody else's – not theirs to pay
+
+    patch record_payment_advices_path, params: { claim_ids: [ @oct.id, @nov.id ], utr_no: "AXIS0099" }
+    assert_equal "AXIS0099", @oct.reload.utr_no
+    assert_nil @nov.reload.utr_no, "a claim they are not the Finance person for must stay untouched"
+  end
+
+  test "someone who is nobody's Finance person still cannot open it" do
+    sign_in @other
+    get authenticated_root_path
+    assert_no_match(/Payment Advice/, response.body)
+    get payment_advices_path
+    assert_redirected_to authenticated_root_path
   end
 
   test "the Excel download carries the filter and the fill-in columns" do

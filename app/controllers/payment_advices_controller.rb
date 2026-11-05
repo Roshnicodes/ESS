@@ -38,7 +38,7 @@ class PaymentAdvicesController < ApplicationController
     return back_with(alert: "Tick at least one claim first.") if ids.empty?
     return back_with(alert: "Type the UTR number before saving.") if utr.blank?
 
-    claims = TourClaim.approved.where(id: ids).includes(:tour, :user)
+    claims = TourClaim.approved.payable_by(current_user).where(id: ids).includes(:tour, :user)
     return back_with(alert: "Those claims are no longer approved – refresh the list.") if claims.empty?
 
     done, failed = [], []
@@ -78,7 +78,7 @@ class PaymentAdvicesController < ApplicationController
   private
 
   def base_scope
-    scope = TourClaim.includes(:tour, :user, :project, :approved_by, :utr_updated_by, :bank_account)
+    scope = TourClaim.includes(:tour, :user, :project, :approved_by, :utr_updated_by, :bank_account).payable_by(current_user)
     scope = scope.where(claim_type: TYPES[@type]) if TYPES[@type]
     (@scope == "paid" ? scope.paid.order(utr_updated_at: :desc) : scope.awaiting_payment.order(:approved_at))
   end
@@ -103,9 +103,10 @@ class PaymentAdvicesController < ApplicationController
     redirect_back fallback_location: payment_advices_path, **flash_message
   end
 
-  # Paying is PD Finance's job; admin keeps full access as everywhere else.
+  # Paying is PD Finance's job – the role, admin, or anyone HR named as a Finance
+  # approver (those people often carry the plain "employee" role).
   def require_payment_role
-    return if current_user.finance?   # pd_finance or admin
+    return if current_user.finance_person?
     raise CanCan::AccessDenied, "Payment Advice is for PD Finance only."
   end
 end
