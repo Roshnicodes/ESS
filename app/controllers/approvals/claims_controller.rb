@@ -8,7 +8,7 @@ class Approvals::ClaimsController < ApplicationController
 
   def index
     @type  = params[:type].to_s == "local" ? "local" : "tour"
-    @scope = params[:scope].to_s == "approved" ? "approved" : "pending"
+    @scope = params[:scope].to_s.in?(%w[approved under_process]) ? params[:scope].to_s : "pending"
     base = TourClaim.where(claim_type: @type).includes(:user, :tour, :approved_by, :project)
     @claims =
       if @scope == "approved"
@@ -24,6 +24,9 @@ class Approvals::ClaimsController < ApplicationController
           base.where(id: mine.approved.select(:id)).or(base.where(id: acted.select(:id)))
               .order(Arel.sql("COALESCE(tour_claims.approved_at, tour_claims.updated_at) DESC"))
         end
+      elsif @scope == "under_process"
+        # Finance marked them "Under process" (printed, Project / BLI still to fill) – still pending with Finance
+        base.in_queue_of(current_user).under_process.order(:under_process_at)
       else
         base.in_queue_of(current_user).order(:submitted_at)
       end
@@ -105,6 +108,16 @@ class Approvals::ClaimsController < ApplicationController
     raise CanCan::AccessDenied, "No question is pending with you" unless @claim.query_pending_with?(current_user)
     @claim.reply_query!(by: current_user, remark: remark!)
     redirect_to approvals_claims_path(type: @claim.claim_type), notice: "Reply sent – claim is back with Finance for approval."
+  end
+
+  # Finance prints the claim and marks it "Under process"; deductions typed so far are kept.
+  # Project / BLI are filled later, when it is approved.
+  def under_process
+    authorize! :review, @claim
+    TourClaim.transaction { save_deductions!; @claim.mark_under_process!(by: current_user) }
+    redirect_to approvals_claim_path(@claim, print: 1), notice: "Claim marked Under process – printing."
+  rescue ActiveRecord::RecordInvalid
+    render_review_again
   end
 
   def reject

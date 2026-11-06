@@ -47,6 +47,7 @@ class TourClaim < ApplicationRecord
   belongs_to :rejected_by,    class_name: "User", optional: true
   belongs_to :returned_by,    class_name: "User", optional: true
   belongs_to :utr_updated_by, class_name: "User", optional: true   # PD Finance who recorded the payment UTR
+  belongs_to :under_process_by, class_name: "User", optional: true # PD Finance who marked it "Under process"
 
   blank_row = ->(keys) { ->(a) { a["id"].blank? && keys.all? { |k| a[k.to_s].blank? } } }
   has_many :claim_city_travels,     -> { order(:travel_date, :position) }, dependent: :destroy, inverse_of: :tour_claim
@@ -87,6 +88,8 @@ class TourClaim < ApplicationRecord
   before_validation :inherit_from_tour, on: :create
   before_validation :default_advance_to_zero
   before_save       :recalculate_totals
+  # "Under process" belongs to one stay with Finance – a return / query / resend starts clean
+  before_save { self.under_process_at = self.under_process_by_id = nil if status_changed? && !status.in?(%w[finance_pending approved]) }
   after_create -> { log_activity!(:claim_created, actor: user, to: status) }
 
   # everything a claim page shows, in a handful of queries
@@ -101,6 +104,7 @@ class TourClaim < ApplicationRecord
   # Payment Advice working lists
   scope :awaiting_payment, -> { approved.where(utr_no: nil) }
   scope :paid,             -> { approved.where.not(utr_no: nil) }
+  scope :under_process,    -> { where(status: "finance_pending").where.not(under_process_at: nil) }
 
   # Whose payment this person records: PD Finance / admin settle everything; a named
   # Finance approver settles the employees HR put them on (and anything they approved).
@@ -287,7 +291,7 @@ class TourClaim < ApplicationRecord
     when "submitted"       then "Pending with L1 – #{l1_approver}"
     when "l1_approved"     then "Forwarded to L2 – #{l2_approver}"
     when "extra_pending"   then "Forwarded to #{extra_label}"
-    when "finance_pending" then "Forwarded to PD Finance#{" – #{finance_approver}" if finance_approver}"
+    when "finance_pending" then under_process? ? "Under process with PD Finance#{" – #{under_process_by}" if under_process_by}" : "Forwarded to PD Finance#{" – #{finance_approver}" if finance_approver}"
     when "finance_query"   then "Finance query – waiting for reply from #{open_query&.role_label} #{open_query&.asked_to}"
     when "approved"        then approved_by_id == user_id ? "Approved" : "Approved by #{approved_by}"
     when "returned"        then "Returned by #{returned_by} – correct & send again"
@@ -445,6 +449,19 @@ class TourClaim < ApplicationRecord
   # ---- Payment Advice ------------------------------------------------------
 
   def paid? = utr_no.present?
+
+  # ---- Under process (Finance) ---------------------------------------------
+  # Finance may print the claim and mark it "Under process" before the Project / BLI is filled;
+  # it stays pending with Finance until it is approved with the coding.
+  def under_process? = finance_pending? && under_process_at.present?
+
+  def mark_under_process!(by:)
+    raise Workflow::NotAllowed, "This claim is not pending with you" unless finance_pending? && current_reviewer?(by)
+    return true if under_process?
+    update_columns(under_process_at: Time.current, under_process_by_id: by.id, updated_at: Time.current)
+    log_activity!(:claim_under_process, actor: by)
+    true
+  end
 
   # Records (or corrects) the bank reference against an approved claim.
   # Returns false with errors when the claim is not payable or the UTR is malformed.

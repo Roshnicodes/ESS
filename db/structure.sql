@@ -1114,6 +1114,8 @@ CREATE TABLE public.tour_claims (
     payment_remark character varying(255),
     utr_updated_at timestamp(6) without time zone,
     utr_updated_by_id bigint,
+    under_process_at timestamp(6) without time zone,
+    under_process_by_id bigint,
     CONSTRAINT chk_claims_advance_positive CHECK ((advance_amount >= (0)::numeric)),
     CONSTRAINT chk_claims_finance_coding_on_approval CHECK ((((status)::text <> 'approved'::text) OR ((project_id IS NOT NULL) AND (budget_line_item_id IS NOT NULL) AND (budget_line_item_code_id IS NOT NULL) AND (approved_at IS NOT NULL)))),
     CONSTRAINT chk_claims_l1 CHECK ((((status)::text <> 'l1_approved'::text) OR ((l1_approved_at IS NOT NULL) AND (l2_approver_id IS NOT NULL)))),
@@ -2523,6 +2525,13 @@ CREATE UNIQUE INDEX index_tour_claims_on_tour_id ON public.tour_claims USING btr
 
 
 --
+-- Name: index_tour_claims_on_under_process_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_tour_claims_on_under_process_at ON public.tour_claims USING btree (under_process_at) WHERE (under_process_at IS NOT NULL);
+
+
+--
 -- Name: index_tour_claims_on_user_id_and_status; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -2975,6 +2984,14 @@ ALTER TABLE ONLY public.project_budget_line_items
 
 ALTER TABLE ONLY public.project_budget_line_items
     ADD CONSTRAINT fk_rails_4411b0c1c2 FOREIGN KEY (budget_line_item_code_id) REFERENCES public.budget_line_item_codes(id);
+
+
+--
+-- Name: tour_claims fk_rails_44765b3445; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tour_claims
+    ADD CONSTRAINT fk_rails_44765b3445 FOREIGN KEY (under_process_by_id) REFERENCES public.users(id);
 
 
 --
@@ -3456,6 +3473,7 @@ ALTER TABLE ONLY public.projects
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261106120001'),
 ('20261105120001'),
 ('20261105100001'),
 ('20261030160001'),

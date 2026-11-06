@@ -67,7 +67,7 @@ class LocalBadgeAndDashboardTest < ActionDispatch::IntegrationTest
     assert_match "Tour plan history", response.body
     assert_match "TA/DA Claim", response.body
     assert_match "Claim history", response.body
-    assert_equal 2, response.body.scan('class="seal ').size                 # plan stamp + claim stamp
+    assert_equal 3, response.body.scan('class="seal ').size                 # plan + claim stamps on screen, plan stamp beside the printed signatures
     assert_match "Plan approved", response.body
     assert_match "Prepared", response.body
   end

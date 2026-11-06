@@ -96,6 +96,10 @@
           <%= text_area_tag :remark, params[:remark], id: "remark_c#{@claim.id}", rows: 2, required: true, class: "inp", placeholder: "Remark – required for Approve / Forward, Return and Reject" %></div>
         <div class="flex flex-wrap justify-end gap-2">
           <%= f.button formaction: approvals_claim_path(@claim), formnovalidate: true, class: "btn-light" do %><%= icon(:check) %> Save deductions<% end %>
+          <% if step == :finance %>
+            <%= button_tag formaction: under_process_approvals_claim_path(@claim), formnovalidate: true, class: "btn-light ring-1 ring-orange-200 text-orange-800",
+                  title: "Print now without Project / BLI – the claim shows “Under process”; approve it later with the coding" do %><%= icon(:printer) %> <%= @claim.under_process? ? "Print (under process)" : "Under process & Print" %><% end %>
+          <% end %>
           <%= button_tag formaction: reject_approvals_claim_path(@claim), formnovalidate: true, class: "btn-soft-danger", data: { turbo_confirm: "Reject? This is final – it cannot be sent again." } do %><%= icon(:x_circle) %> Reject<% end %>
           <% if step == :finance %>
             <span class="inline-flex items-stretch overflow-hidden rounded-xl ring-1 ring-orange-200">
@@ -114,8 +118,9 @@
   <%= render "tour_claims/summary", claim: @claim %>
 <% end %>
 
-<div class="seal-foot"><%= approval_seal(@claim, top: "Claim") %></div>
-<%= render "shared/print_signatures", rows: [ [ "Employee", @claim.user.name, @claim.submitted_at ],
+<% if params[:print].present? %><div data-controller="auto-print" hidden></div><% end %>
+<div class="seal-foot print:hidden"><%= approval_seal(@claim, top: "Claim") %></div>
+<%= render "shared/print_signatures", seal: approval_seal(@claim, top: "Claim"), rows: [ [ "Employee", @claim.user.name, @claim.submitted_at ],
       [ "L1", (@claim.l1_approved_by || @claim.l1_approver)&.name, @claim.l1_approved_at ],
       ([ "L2", (@claim.l2_approved_by || @claim.l2_approver)&.name, @claim.l2_approved_at ] if @claim.l2_approver_id),
       [ "Finance", (@claim.approved_by || @claim.finance_approver)&.name, @claim.approved_at ] ].compact %>

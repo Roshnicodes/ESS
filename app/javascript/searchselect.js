@@ -8,7 +8,25 @@ const TomSelect = window.TomSelect
 // Selects inside the date-picker calendar (month list) stay native – a Tom Select there hid the year box
 // and made it look like only the current month could be picked.
 
+// A <select multiple> becomes a chip box: type to search, × on a chip removes it (the select keeps the values).
+function enhanceMultiple(el) {
+  new TomSelect(el, {
+    plugins: ["remove_button"],
+    dropdownParent: el.closest("dialog") || "body",
+    maxOptions: null,
+    create: false,
+    hidePlaceholder: false,
+    searchField: ["text"],
+    placeholder: el.dataset.placeholder || "Type to search and add…",
+    render: { no_results: () => '<div class="no-results px-3 py-2 text-sm text-slate-400">No match found</div>' }
+  })
+}
+
 function enhance(root) {
+  root.querySelectorAll?.("select[multiple]:not([data-no-search])").forEach((el) => {
+    if (el.tomselect || el.closest("template") || el.closest(".flatpickr-calendar")) return
+    enhanceMultiple(el)
+  })
   root.querySelectorAll?.("select:not([data-no-search]):not([multiple])").forEach((el) => {
     if (el.tomselect || el.closest("template") || el.closest(".flatpickr-calendar")) return
     new TomSelect(el, {

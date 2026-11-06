@@ -197,6 +197,7 @@
 .seal-top  { font-size: 7px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; opacity: .75; }
 .seal-word { margin: 2px 0 3px; font-size: 11.5px; font-weight: 800; letter-spacing: .03em; text-transform: uppercase; }
 .seal-line { font-size: 8px; font-weight: 600; }
+.seal-word.seal-word-long { font-size: 9.5px; letter-spacing: 0; }
 .seal-line + .seal-line { opacity: .8; }
 .seal-ok   { color: #15803d; }
 .seal-wait { color: #b45309; }
@@ -211,7 +212,15 @@
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .lg\:pl-72 { padding-left: 0 !important; }
   .app-main { max-width: none !important; padding: 0 !important; }
-  .card { box-shadow: none !important; border: 1px solid #cbd5e1 !important; border-radius: 6px !important; background: #fff !important; backdrop-filter: none !important; break-inside: avoid; }
+  /* a card may continue on the next page – keeping it whole pushed long claims to page 2 and left page 1 blank;
+     rows, headings and the signature line stay together instead */
+  .card { box-shadow: none !important; border: 1px solid #cbd5e1 !important; border-radius: 6px !important; background: #fff !important; backdrop-filter: none !important; break-inside: auto; }
+  .card-head, .page-heading, thead { break-after: avoid; }
+  .card, .overflow-hidden, .overflow-x-auto { overflow: visible !important; }
+  .print-only.print-sign-row { display: flex !important; align-items: center; gap: 12px; break-inside: avoid; }
+  .print-sign-seal { flex-shrink: 0; padding: 0 6px; }
+  .seal-foot { display: none !important; }   /* on paper the stamp is printed beside the signatures */
+  .print-sign-seal .seal-ring { width: 96px; height: 96px; }
   .fade-up { animation: none !important; }
   .page-heading { margin-bottom: .5rem !important; }
   .page-heading-actions > *:not(.seal) { display: none !important; }
@@ -278,6 +287,21 @@ dialog .ts-dropdown { z-index: 80; }
 /* tom-select.css loads after this file and sets z-index:10 – win explicitly; never narrower than its options */
 body > .ts-dropdown, .ts-wrapper .ts-dropdown { z-index: 1000 !important; min-width: 13rem; }
 .ts-dropdown .option { white-space: nowrap; }
+/* multi-select chip box (e.g. Tatkal approvers, notify list) */
+.ts-wrapper.multi.inp { padding: 0 !important; border: 0 !important; box-shadow: none !important; background: transparent !important; }
+.ts-wrapper.multi .ts-control { padding: .35rem .5rem; gap: .3rem; cursor: text; flex-wrap: wrap; }
+.ts-wrapper.multi .ts-control > input { min-width: 9rem; font-size: .875rem; }
+.ts-wrapper.multi .ts-control > .item { display: inline-flex; align-items: center; margin: 0; border-radius: 9999px; border: 1px solid var(--color-brand-200);
+  background: var(--color-brand-50); color: var(--color-brand-800); padding: .15rem .25rem .15rem .6rem; font-size: 12.5px; font-weight: 600; }
+.ts-wrapper.multi .ts-control > .item .remove { border: 0 !important; margin-left: .2rem; border-radius: 9999px; padding: 0 .35rem; color: var(--color-brand-700); font-size: 14px; }
+.ts-wrapper.multi .ts-control > .item .remove:hover { background: var(--color-brand-100); }
+.ts-dropdown.multi .option { white-space: normal; }
+
+/* option boxes (Mode of Travel: where it can be chosen) */
+.mode-toggle { display: flex; cursor: pointer; align-items: flex-start; gap: .75rem; border-radius: .9rem; padding: .75rem .85rem;
+  border: 1px solid rgb(226 232 240 / .9); background: rgb(255 255 255 / .6); transition: border-color .15s, background .15s; }
+.mode-toggle:hover { border-color: var(--color-brand-300); }
+.mode-toggle:has(:checked) { border-color: var(--color-brand-400); background: rgb(240 253 244 / .8); }
 
 /* ---------- premium shared visual system ---------- */
 .app-bg {
@@ -479,3 +503,24 @@ body.app-bg::before {
 }
 .card { background: rgb(255 255 255 / .93); }
 .app-bg { background-attachment: scroll; }
+
+/* ---------- dashboard ---------- */
+.dash-welcome { border-radius: 1.25rem; padding: 1.1rem 1.35rem; color: #fff;
+  background: linear-gradient(120deg, var(--color-brand-700) 0%, var(--color-brand-600) 55%, #3fae4f 100%);
+  box-shadow: 0 12px 30px -16px rgb(20 83 45 / .55); }
+.dash-quick { display: inline-flex; align-items: center; gap: .4rem; border-radius: .75rem; padding: .45rem .8rem; font-size: 13px; font-weight: 600;
+  color: #fff; background: rgb(255 255 255 / .16); border: 1px solid rgb(255 255 255 / .28); transition: background .15s; }
+.dash-quick:hover { background: rgb(255 255 255 / .28); }
+.dash-tile { display: flex; align-items: center; gap: .9rem; border-radius: 1rem; padding: 1rem 1.1rem; background: rgb(255 255 255 / .93);
+  border: 1px solid rgb(226 232 240 / .9); box-shadow: 0 6px 20px -14px rgb(15 23 42 / .35); transition: transform .15s, box-shadow .15s; }
+.dash-tile:hover { transform: translateY(-2px); box-shadow: 0 12px 26px -14px rgb(15 23 42 / .35); }
+.dash-row { display: flex; align-items: center; gap: .75rem; padding: .85rem 1.25rem; }
+.dash-row:hover { background: rgb(255 255 255 / .55); }
+.dash-link { display: flex; align-items: center; gap: .45rem; border-radius: .7rem; padding: .55rem .7rem; color: var(--color-slate-700);
+  background: rgb(248 250 252 / .9); border: 1px solid rgb(226 232 240 / .9); }
+.dash-link:hover { color: var(--color-brand-700); border-color: var(--color-brand-200); }
+@media print { .dash-welcome { box-shadow: none; } .dash-quick { display: none; } }
+@media (max-width: 639px) {
+  .dash-tile { flex-direction: column; align-items: flex-start; gap: .5rem; padding: .85rem; }
+  .dash-tile .text-2xl { font-size: 1.25rem; }
+}
