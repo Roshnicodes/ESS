@@ -8,7 +8,8 @@ class DashboardController < ApplicationController
     @pending_tour_approvals = Tour.pending_for(u).count
     @pending_claims = TourClaim.in_queue_of(u).count
     @on_tour_count = Tour.planned_on(today).count
-    @on_tour_faces = Tour.planned_on(today).includes(:user).order(:from_date).limit(6).map(&:user)
+    @on_tour_list  = Tour.planned_on(today).includes(:tour_visits, user: :location).order(:from_date).limit(5).to_a
+    @on_tour_faces = @on_tour_list.map(&:user)
     @claim_ready = tours.approved.where.missing(:tour_claim).select(&:claimable?).first(4)
 
     # things of mine that came back / wait to be sent
