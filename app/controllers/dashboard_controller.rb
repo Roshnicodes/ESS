@@ -34,6 +34,18 @@ class DashboardController < ApplicationController
     @circulars = (u.admin? ? Circular.live : Circular.live.visible_to(u)).with_attached_attachments.newest_first.limit(5).to_a
     @unread_circular_ids = u.notifications.unread.where(notifiable_type: "Circular").pluck(:notifiable_id).to_set
 
+    # PD HR / admin: the organisation at a glance
+    if u.hr?
+      @org = {
+        employees:      User.active.count,
+        tours_pending:  Tour.type_tour.where(status: %w[submitted l1_approved l2_approved]).count,
+        claims_pending: TourClaim.where(status: %w[submitted l1_approved extra_pending finance_query]).count,
+        with_finance:   TourClaim.where(status: "finance_pending").count,
+        under_process:  TourClaim.under_process.count,
+        utr_pending:    TourClaim.awaiting_payment.count
+      }
+    end
+
     # PD Finance work
     if u.finance_person?
       @under_process = TourClaim.in_queue_of(u).under_process.count
