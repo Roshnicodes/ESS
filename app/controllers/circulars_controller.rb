@@ -14,8 +14,13 @@ class CircularsController < ApplicationController
   def attachment
     file = @circular.attachments.detect { |a| a.id == params[:attachment_id].to_i } or return head(:not_found)
     blob = file.blob
+    # only pictures and PDFs open in the browser (shown on the IOM page); anything else always downloads,
+    # so an uploaded HTML / SVG file can never run inside ESS
+    viewable = blob.content_type.to_s == "application/pdf" ||
+               (blob.content_type.to_s.start_with?("image/") && !blob.content_type.to_s.include?("svg"))
+    expires_in 1.hour, private: true
     send_data blob.download, filename: blob.filename.to_s, type: blob.content_type,
-              disposition: params[:download] ? "attachment" : "inline"
+              disposition: params[:download] || !viewable ? "attachment" : "inline"
   end
 
   private

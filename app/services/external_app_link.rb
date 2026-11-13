@@ -11,6 +11,10 @@ require "cgi"
 #   Old ESS:    <OLD_ESS_URL>/ess_sso.php?emp_code=<emp_code>&expires_at=<unix>&signature=
 #               HMAC-SHA256(OLD_ESS_SSO_SECRET, "<emp_code>:<expires_at>")          (old_ess_sso/ess_sso.php there)
 #               Until its secret is set, the menu simply opens the old ESS login page.
+#   ASA KRA:    <ASA_KRA_URL>/users/ess_sign_in/<emp_code>?expires_at=<unix>&signature=
+#               HMAC-SHA256(ASA_KRA_SSO_SECRET, "<emp_code>:<expires_at>")         (secret = ESS_SSO_SECRET on asakra)
+#   Exam:       a plain link (EXAM_URL) – the exam portal has its own HR login; shown only to PD HR / admin
+#               and the employee codes in EXAM_ACCESS_CODES.
 class ExternalAppLink
   VALID_FOR = 2.minutes
 
@@ -23,8 +27,12 @@ class ExternalAppLink
     "help_desk"   => { label: "Help Desk",   app: :kra },
     "training"    => { label: "Training",    app: :kra },
     "geohub"      => { label: "GeoHub",      app: :geohub },
-    "old_ess"     => { label: "Old ESS",     app: :old_ess }
+    "old_ess"     => { label: "Old ESS",     app: :old_ess },
+    "asa_kra"     => { label: "ASA KRA",     app: :asa_kra },
+    "exam"        => { label: "Exam",        app: :exam }
   }.freeze
+
+  EXAM_DEFAULT_CODES = "1508".freeze   # Laxmi Bhadoriya (Manager HR); PD HR / admin always see it
 
   def self.tool?(key) = TOOLS.key?(key.to_s)
   def self.label(key) = TOOLS.dig(key.to_s, :label)
@@ -33,13 +41,25 @@ class ExternalAppLink
   def self.kra_url    = (AppSetting.get("KRA_PORTAL_URL").presence || "https://kra.asaindia.org").chomp("/")
   def self.geohub_url = (AppSetting.get("GEOHUB_URL").presence || "https://geohub.asaindia.org").chomp("/")
   def self.old_ess_url = (AppSetting.get("OLD_ESS_URL").presence || "https://ess.asaindia.org").chomp("/")
+  def self.asa_kra_url = (AppSetting.get("ASA_KRA_URL").presence || "https://asakra.asaindia.org").chomp("/")
+  def self.exam_url    = AppSetting.get("EXAM_URL").to_s.strip.chomp("/").presence
 
-  SECRET_SETTING = { kra: "KRA_SSO_SECRET", geohub: "GEOHUB_SSO_SECRET", old_ess: "OLD_ESS_SSO_SECRET" }.freeze
+  # Who sees a tool in the menu (and may open it). Exam: PD HR / admin + the listed employee codes.
+  def self.visible?(key, user)
+    return false unless tool?(key)
+    return true unless key.to_s == "exam"
+    return true if user.hr?
+    codes = (AppSetting.get("EXAM_ACCESS_CODES").presence || EXAM_DEFAULT_CODES).split(/[,;\s]+/).map { |c| c.strip.downcase }
+    codes.include?(user.emp_code.to_s.strip.downcase)
+  end
+
+  SECRET_SETTING = { kra: "KRA_SSO_SECRET", geohub: "GEOHUB_SSO_SECRET", old_ess: "OLD_ESS_SSO_SECRET", asa_kra: "ASA_KRA_SSO_SECRET" }.freeze
 
   def self.secret_for(app) = AppSetting.get(SECRET_SETTING.fetch(app)).to_s
 
   def self.configured?(key)
     app = TOOLS.dig(key.to_s, :app) or return false
+    return exam_url.present? if app == :exam
     app == :old_ess || secret_for(app).present?   # old ESS: login page until its secret is set
   end
 
@@ -49,6 +69,12 @@ class ExternalAppLink
     code = user.emp_code.to_s.strip
     expires_at = (now + VALID_FOR).to_i
     app = TOOLS[key.to_s][:app]
+
+    return exam_url if app == :exam
+    if app == :asa_kra
+      sig = OpenSSL::HMAC.hexdigest("SHA256", secret_for(:asa_kra), "#{code}:#{expires_at}")
+      return "#{asa_kra_url}/users/ess_sign_in/#{CGI.escape(code)}?#{URI.encode_www_form(expires_at: expires_at, signature: sig)}"
+    end
 
     if app == :kra
       sig = OpenSSL::HMAC.hexdigest("SHA256", secret_for(:kra), "#{code}:#{key}:#{expires_at}")

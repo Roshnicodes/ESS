@@ -3,7 +3,7 @@ require "test_helper"
 class ItToolsTest < ActionDispatch::IntegrationTest
   setup do
     @emp = user("1025")
-    @keys = %w[KRA_SSO_SECRET GEOHUB_SSO_SECRET GEOHUB_URL KRA_PORTAL_URL OLD_ESS_SSO_SECRET OLD_ESS_URL]
+    @keys = %w[KRA_SSO_SECRET GEOHUB_SSO_SECRET GEOHUB_URL KRA_PORTAL_URL OLD_ESS_SSO_SECRET OLD_ESS_URL ASA_KRA_SSO_SECRET ASA_KRA_URL EXAM_URL EXAM_ACCESS_CODES]
     @env = ENV.to_h.slice(*@keys)
   end
   teardown { @keys.each { |k| ENV[k] = @env[k] } }
@@ -12,6 +12,41 @@ class ItToolsTest < ActionDispatch::IntegrationTest
     sign_in @emp
     get authenticated_root_path
     %w[guest_house help_desk training geohub old_ess].each { |t| assert_match it_tool_path(t), response.body }
+  end
+
+  test "ASA KRA opens already signed in – link signed the way ASA KRA checks it" do
+    ENV["ASA_KRA_SSO_SECRET"] = "asakra-secret"; ENV["ASA_KRA_URL"] = "https://asakra.asaindia.org"
+    sign_in @emp
+    get authenticated_root_path
+    assert_match it_tool_path("asa_kra"), response.body
+    get it_tool_path("asa_kra")
+    uri = URI.parse(response.location)
+    q = URI.decode_www_form(uri.query).to_h
+    assert_equal "asakra.asaindia.org", uri.host
+    assert_equal "/users/ess_sign_in/#{@emp.emp_code}", uri.path
+    expected = OpenSSL::HMAC.hexdigest("SHA256", "asakra-secret", "#{@emp.emp_code}:#{q['expires_at']}")
+    assert_equal expected, q["signature"]
+  end
+
+  test "Exam is only in the menu of PD HR / admin and the listed employees" do
+    ENV["EXAM_URL"] = "https://exam.asaindia.org"; ENV["EXAM_ACCESS_CODES"] = nil
+    sign_in @emp
+    get authenticated_root_path
+    assert_no_match it_tool_path("exam"), response.body
+    get it_tool_path("exam")
+    assert_redirected_to authenticated_root_path
+    assert_match "do not have access", flash[:alert]
+
+    laxmi = User.create!(emp_code: "1508", name: "Laxmi Bhadoriya", designation: "Manager HR", password: "123456")
+    sign_in laxmi
+    get authenticated_root_path
+    assert_match it_tool_path("exam"), response.body
+    get it_tool_path("exam")
+    assert_redirected_to "https://exam.asaindia.org"
+
+    sign_in user("HR001")
+    get it_tool_path("exam")
+    assert_redirected_to "https://exam.asaindia.org"
   end
 
   test "not connected yet → friendly message, no redirect away" do

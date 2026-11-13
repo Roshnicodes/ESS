@@ -9,7 +9,11 @@ class Masters::ItToolSettingsController < ApplicationController
     "GEOHUB_URL"        => [ "GeoHub address", "https://geohub.asaindia.org" ],
     "GEOHUB_SSO_SECRET" => [ "GeoHub secret (ESS_LOGIN_SECRET on the GeoHub server)", nil ],
     "OLD_ESS_URL"        => [ "Old ESS address", "https://ess.asaindia.org" ],
-    "OLD_ESS_SSO_SECRET" => [ "Old ESS secret (same value inside ess_sso.php on the old ESS) – blank = old ESS opens its login page", nil ]
+    "OLD_ESS_SSO_SECRET" => [ "Old ESS secret (same value inside ess_sso.php on the old ESS) – blank = old ESS opens its login page", nil ],
+    "ASA_KRA_URL"        => [ "ASA KRA address", "https://asakra.asaindia.org" ],
+    "ASA_KRA_SSO_SECRET" => [ "ASA KRA secret (ESS_SSO_SECRET on the ASA KRA server)", nil ],
+    "EXAM_URL"           => [ "Exam portal address (opens its own login) – blank = Exam shows “not connected yet”", nil ],
+    "EXAM_ACCESS_CODES"  => [ "Who else sees Exam (besides PD HR / admin) – employee codes, comma separated", ExternalAppLink::EXAM_DEFAULT_CODES ]
   }.freeze
 
   def show
