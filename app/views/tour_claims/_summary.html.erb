@@ -4,8 +4,8 @@
 <div data-controller="review-calc" data-review-calc-advance-value="<%= claim.advance_amount.to_d %>">
 <div class="card mb-4 flex flex-wrap items-center gap-x-5 gap-y-1 px-4 py-2.5 text-sm sm:px-5">
   <span class="flex items-center gap-2"><%= avatar(u, size: "h-8 w-8 text-xs") %><b><%= u.name %></b><span class="text-slate-500"><%= [u.designation, u.level, u.emp_code].compact.join(" · ") %></span></span>
-  <span><span class="text-xs font-semibold uppercase text-slate-400">Duration</span> <%= claim.type_local? ? tour.claim_month.strftime("%b-%Y") : tour.duration_label %></span>
   <span><span class="text-xs font-semibold uppercase text-slate-400">Location</span> <%= u.location || "—" %></span>
+  <span><span class="text-xs font-semibold uppercase text-slate-400">Duration</span> <%= claim.type_local? ? tour.claim_month.strftime("%b-%Y") : tour.duration_label %></span>
   <% if claim.type_local? %>
     <span><span class="text-xs font-semibold uppercase text-slate-400">Claim amount</span> <b class="text-slate-900" data-review-balance><%= inr(claim.balance_amount) %></b></span>
     <span class="flex items-center gap-1.5 text-xs font-medium <%= claim.helmet_declaration? ? 'text-emerald-700' : 'text-slate-500' %>">
@@ -17,7 +17,9 @@
   <span class="ml-auto"><%= claim_status_badge(claim) %></span>
 </div>
 
-<%# Payment account – visible to the employee and to this claim's Finance (PD Finance / admin) %>
+<%# Payment account – visible to the employee and to this claim's Finance (PD Finance / admin).
+    On screen it stays at the top; on paper it is printed at the end, after the travel details. %>
+<% pay_to = capture do %>
 <% bank = claim.bank_account %>
 <% if bank && (claim.user_id == current_user.id || can?(:read, bank)) %>
   <div class="card mb-4 flex flex-wrap items-center gap-x-6 gap-y-2 border-l-4 border-l-brand-500 px-4 py-2.5 text-sm sm:px-5">
@@ -32,6 +34,9 @@
 <% elsif bank.nil? && claim.employee_editable? == false && (current_user.finance? || claim.finance_approver_id == current_user.id) %>
   <div class="card mb-4 px-4 py-2.5 text-sm text-amber-800">No bank account chosen on this claim (sent before Bank Details existed).</div>
 <% end %>
+
+<% end %>
+<div class="print:hidden"><%= pay_to %></div>
 
 <% claim_sections.each do |assoc, (title, heads, cells)| %>
   <% lines = claim.public_send(assoc) %>
@@ -72,13 +77,19 @@
 <% if claim.type_local? %>
   <%# Amount and helmet status live in the compact claimant line above; no separate panel. %>
 <% else %>
-<%# totals + description in one compact line %>
-<div class="card mb-4 flex flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3 text-sm sm:px-5">
-  <span>Grand total <b class="ml-1 text-lg text-slate-900" data-review-grand><%= inr(claim.grand_total) %></b></span>
-  <span class="text-slate-500">− Advance <b class="ml-1 text-slate-700"><%= inr(claim.advance_amount) %></b></span>
-  <span class="rounded-lg bg-brand-600 px-3 py-1 text-white">Balance <b class="ml-1 text-lg" data-review-balance><%= inr(claim.balance_amount) %></b></span>
-  <% if claim.general_description.present? %><span class="min-w-0 flex-1 truncate text-slate-600" title="<%= claim.general_description %>"><span class="text-xs font-semibold uppercase text-slate-400">Description</span> <%= claim.general_description %></span><% end %>
-  <% if claim.two_wheeler_used? %><span class="flex items-center gap-1 text-xs"><%= icon(claim.helmet_declaration? ? :check_circle : :x_circle, "h-4 w-4 #{claim.helmet_declaration? ? 'text-emerald-500' : 'text-rose-500'}") %>Helmet declaration</span><% end %>
+<%# totals under the last sub total: total claimed → less advance → grand total (payable); description below %>
+<div class="card claim-totals mb-4 overflow-hidden">
+  <div class="ml-auto w-full max-w-md divide-y divide-slate-100 text-sm">
+    <div class="flex items-center justify-between px-4 py-2 sm:px-5"><span class="text-slate-500">Total of all sections</span><b class="text-slate-900" data-review-grand><%= inr(claim.grand_total) %></b></div>
+    <div class="flex items-center justify-between px-4 py-2 sm:px-5"><span class="text-slate-500">Less: Advance</span><b class="text-slate-700">− <%= inr(claim.advance_amount) %></b></div>
+    <div class="flex items-center justify-between bg-brand-600 px-4 py-2.5 text-white sm:px-5"><span class="font-semibold">Grand total (payable)</span><b class="text-lg" data-review-balance><%= inr(claim.balance_amount) %></b></div>
+  </div>
+  <% if claim.general_description.present? || claim.two_wheeler_used? %>
+    <div class="flex flex-wrap items-start gap-x-6 gap-y-1 border-t border-slate-100 px-4 py-2.5 text-sm sm:px-5">
+      <% if claim.general_description.present? %><span class="min-w-0 flex-1 text-slate-600"><span class="text-xs font-semibold uppercase text-slate-400">Description</span> <%= claim.general_description %></span><% end %>
+      <% if claim.two_wheeler_used? %><span class="flex items-center gap-1 text-xs"><%= icon(claim.helmet_declaration? ? :check_circle : :x_circle, "h-4 w-4 #{claim.helmet_declaration? ? 'text-emerald-500' : 'text-rose-500'}") %>Helmet declaration</span><% end %>
+    </div>
+  <% end %>
 </div>
 
 <% if claim.claim_visit_reports.any? %>
@@ -88,4 +99,5 @@
 </div>
 <% end %>
 <% end %>
+<div class="hidden print:block"><%= pay_to %></div>
 </div>

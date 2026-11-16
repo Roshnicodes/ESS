@@ -65,6 +65,34 @@ class FinanceUnderProcessTest < ActionDispatch::IntegrationTest
     assert_match coding.budget_line_item.name, response.body
   end
 
+  test "NA project: Finance can approve a claim that belongs to no project (NA / NA / NA)" do
+    get approvals_claim_path(@claim)
+    assert_match "NA – no project", response.body
+    assert_match "Local Mileage Claim", response.body                     # page named after the claim type
+    na = ProjectBudgetLineItem.ensure_na!
+    patch approve_approvals_claim_path(@claim), params: { remark: "ok", project_id: na.project_id,
+      budget_line_item_id: na.budget_line_item_id, budget_line_item_code_id: na.budget_line_item_code_id }
+    assert @claim.reload.approved?
+    assert_equal %w[NA NA NA], [ @claim.project.name, @claim.budget_line_item.name, @claim.budget_line_item_code.name ]
+    assert_equal na, ProjectBudgetLineItem.ensure_na!                      # never duplicated
+  end
+
+  test "summary: advance and grand total under the sections, Pay to printed at the end" do
+    get approvals_claim_path(@claim)
+    body = response.body
+    assert_match %(class="hidden print:block"), body                      # bank printed after the details
+    assert body.index("Sub total") < body.index(%(class="hidden print:block"))
+  end
+
+  test "employee can view / print a claim that is only saved, without opening Edit" do
+    @claim.update_columns(status: "draft", submitted_at: nil)
+    sign_in @emp
+    get tours_path(type: "local")
+    assert_match %(href="#{tour_claim_path(@claim.tour)}"), response.body
+    get tour_claim_path(@claim.tour)
+    assert_response :success
+  end
+
   private
 
   def finance_pending_claim(employee, month, amount)

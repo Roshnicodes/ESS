@@ -1,6 +1,7 @@
-<% content_for :title, "Review Claim" %>
+<% claim_title = @claim.type_local? ? "Local Mileage Claim" : "Tour Claim" %>
+<% content_for :title, claim_title %>
 <% step = @claim.review_step %>
-<%= page_header("Review Claim", @claim.tour.duration_label, icon_name: :clipboard) do %>
+<%= page_header(claim_title, @claim.type_local? ? @claim.tour.claim_month&.strftime("%b-%Y") : @claim.tour.duration_label, icon_name: :clipboard) do %>
   <%= history_link(@claim.tour, target: "_blank") %>
   <%= print_button %>
 <% end %>
@@ -25,11 +26,12 @@
     uploaded mapping, so a project cannot be approved with another project's BLI. %>
 <% finance_fields = capture do %>
   <% if step == :finance %>
+    <% na = ProjectBudgetLineItem.ensure_na! %>
     <% mappings = ProjectBudgetLineItem.active.includes(:project, :budget_line_item, :budget_line_item_code).map { |m| { project_id: m.project_id, line_item_id: m.budget_line_item_id, line_item_name: m.budget_line_item.name, code_id: m.budget_line_item_code_id, code_name: m.budget_line_item_code.name } } %>
     <% project_ids = mappings.pluck(:project_id).uniq %>
     <div class="grid gap-3 sm:grid-cols-3" data-controller="finance-coding" data-finance-coding-mappings-value="<%= json_escape(mappings.to_json) %>">
       <div><%= label_tag :project_id, "Project", class: "lbl" %>
-        <%= select_tag :project_id, options_for_select(Project.active.where(id: project_ids).ordered.pluck(:name, :id), params[:project_id] || @claim.project_id), include_blank: "Select project", required: true, class: "inp", data: { finance_coding_target: "project", action: "change->finance-coding#projectChanged" } %></div>
+        <%= select_tag :project_id, options_for_select([ [ "NA – no project", na.project_id ] ] + Project.active.where(id: project_ids).where.not(id: na.project_id).ordered.pluck(:name, :id), params[:project_id] || @claim.project_id), include_blank: "Select project", required: true, class: "inp", data: { finance_coding_target: "project", action: "change->finance-coding#projectChanged" } %></div>
       <div><%= label_tag :budget_line_item_id, "Budget Line Item (BLI)", class: "lbl" %>
         <%= select_tag :budget_line_item_id, options_for_select([], params[:budget_line_item_id] || @claim.budget_line_item_id), required: true, class: "inp", data: { finance_coding_target: "lineItem", selected: (params[:budget_line_item_id] || @claim.budget_line_item_id), action: "change->finance-coding#lineItemChanged" } %></div>
       <div><%= label_tag :budget_line_item_code_id, "BLI Code", class: "lbl" %>
