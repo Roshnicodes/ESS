@@ -77,11 +77,12 @@ class FinanceUnderProcessTest < ActionDispatch::IntegrationTest
     assert_equal na, ProjectBudgetLineItem.ensure_na!                      # never duplicated
   end
 
-  test "summary: advance and grand total under the sections, Pay to printed at the end" do
+  test "summary: Pay to after the travel details and Location under the name" do
     get approvals_claim_path(@claim)
     body = response.body
-    assert_match %(class="hidden print:block"), body                      # bank printed after the details
-    assert body.index("Sub total") < body.index(%(class="hidden print:block"))
+    assert body.index("Sub total") < body.index("Pay to")                 # bank after the details, screen and paper
+    assert_equal 1, body.scan(">Pay to<").size
+    assert_match(/<b>#{Regexp.escape(@emp.name)}<\/b>.{0,400}>Location</m, body)   # location on the line under the name
   end
 
   test "employee can view / print a claim that is only saved, without opening Edit" do
