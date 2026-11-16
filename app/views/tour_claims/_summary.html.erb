@@ -33,7 +33,8 @@
     <span class="flex items-center gap-2 font-semibold text-slate-800"><span class="icon-chip bg-brand-50 text-brand-600"><%= icon(:banknotes) %></span>Pay to</span>
     <% [["Bank", bank.bank_name], ["A/c holder", bank.account_holder_name], ["A/c no.", bank.account_number], ["IFSC", bank.ifsc_code], ["Branch", bank.branch_name], ["Type", bank.account_type.humanize]].each do |label, value| %>
       <% next if value.blank? %>
-      <span><span class="text-xs font-semibold uppercase text-slate-400"><%= label %></span> <b class="<%= 'font-mono' if label.in?(['A/c no.', 'IFSC']) %> text-slate-900"><%= value %></b></span>
+      <%# account type only on screen – on paper it wrapped onto its own line %>
+      <span class="<%= 'print:hidden' if label == 'Type' %>"><span class="text-xs font-semibold uppercase text-slate-400"><%= label %></span> <b class="<%= 'font-mono' if label.in?(['A/c no.', 'IFSC']) %> text-slate-900"><%= value %></b></span>
     <% end %>
     <% unless bank.active? %><span class="badge bg-slate-100 text-slate-600">Deactivated later by employee</span><% end %>
     <% if bank.passbook.attached? %><%= link_to passbook_account_bank_account_path(bank), target: "_blank", class: "btn-light btn-xs ml-auto print:hidden" do %><%= icon(:eye) %> Passbook copy<% end %><% end %>
