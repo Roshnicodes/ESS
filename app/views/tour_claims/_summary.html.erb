@@ -7,7 +7,7 @@
   <span class="flex items-center gap-2.5"><%= avatar(u, size: "h-9 w-9 text-xs") %>
     <span class="leading-tight">
       <span class="block"><b><%= u.name %></b> <span class="text-slate-500"><%= [u.designation, u.level, u.emp_code].compact.join(" · ") %></span></span>
-      <span class="mt-0.5 flex flex-wrap gap-x-4 text-[13px]">
+      <span class="mt-0.5 flex flex-wrap gap-x-4">
         <span><span class="text-xs font-semibold uppercase text-slate-400">Location</span> <%= u.location || "—" %></span>
         <span><span class="text-xs font-semibold uppercase text-slate-400">Duration</span> <%= claim.type_local? ? tour.claim_month.strftime("%b-%Y") : tour.duration_label %></span>
       </span>

@@ -35,6 +35,7 @@ class User < ApplicationRecord
   # passwords, so keep the application rule aligned with that approved list.
   validates :password, presence: true, length: { minimum: PASSWORD_MINIMUM_LENGTH }, confirmation: true, if: :password_required?
   validate  :manager_not_self
+  validate  :not_deactivating_an_approver, if: -> { persisted? && will_save_change_to_active?(from: true, to: false) }
 
   after_update_commit :reassign_pending_finance_claims!, if: :saved_change_to_finance_approver_id?
 
@@ -67,6 +68,17 @@ class User < ApplicationRecord
       TourClaim.in_queue_of(self).exists?
   end
 
+  # Active employees for whom this person is the L-1, L-2 or Finance approver
+  def approval_dependents
+    User.active.where.not(id: id)
+        .where("reporting_manager_id = :id OR l2_manager_id = :id OR finance_approver_id = :id", id: id).ordered
+  end
+
+  # Travel modes (e.g. Flight) where this person must approve tours
+  def approver_travel_modes
+    TravelMode.where(id: TravelModeApprover.where(user_id: id, kind: %w[approve tatkal]).select(:travel_mode_id))
+  end
+
   def active_for_authentication? = super && active?
   def inactive_message = active? ? super : :locked
 
@@ -90,6 +102,30 @@ class User < ApplicationRecord
 
   def password_required?
     !persisted? || password.present? || password_confirmation.present?
+  end
+
+  # HR may not deactivate someone who is still an approval authority – tours / claims of those
+  # employees would get stuck. Set a new L-1 / L-2 / Finance for them first, then deactivate.
+  def not_deactivating_an_approver
+    people = approval_dependents.to_a
+    modes = approver_travel_modes.pluck(:name)
+    return if people.empty? && modes.empty?
+
+    if people.any?
+      names = people.first(10).map do |p|
+        roles = { "L-1" => p.reporting_manager_id, "L-2" => p.l2_manager_id, "Finance" => p.finance_approver_id }
+                  .select { |_, v| v == id }.keys
+        "#{p.name} (#{p.emp_code}) – #{roles.join(' / ')}"
+      end
+      names << "and #{people.size - 10} more" if people.size > 10
+      errors.add(:base, "Cannot deactivate #{name}: they are the approval authority for #{people.size} active " \
+                        "employee#{'s' unless people.size == 1}: #{names.join('; ')}. " \
+                        "First set a new L-1 / L-2 / Finance approver for #{people.size == 1 ? 'this employee' : 'these employees'}, then deactivate.")
+    end
+    if modes.any?
+      errors.add(:base, "Cannot deactivate #{name}: they are an approver for travel mode #{modes.join(', ')}. " \
+                        "Remove them from Masters → Travel Modes first.")
+    end
   end
 
   def manager_not_self
