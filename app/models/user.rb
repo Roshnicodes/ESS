@@ -79,6 +79,14 @@ class User < ApplicationRecord
     TravelMode.where(id: TravelModeApprover.where(user_id: id, kind: %w[approve tatkal]).select(:travel_mode_id))
   end
 
+  # Tour plans / claims waiting for this person's own decision (the Approvals queues). Claims in
+  # the common PD Finance pool (no named Finance person) are left out – any PD Finance can settle them.
+  def pending_approval_tours = Tour.pending_for(self)
+  def pending_approval_claims
+    queue = TourClaim.in_queue_of(self)
+    queue.where.not(status: "finance_pending").or(queue.where.not(finance_approver_id: nil))
+  end
+
   def active_for_authentication? = super && active?
   def inactive_message = active? ? super : :locked
 
@@ -109,7 +117,9 @@ class User < ApplicationRecord
   def not_deactivating_an_approver
     people = approval_dependents.to_a
     modes = approver_travel_modes.pluck(:name)
-    return if people.empty? && modes.empty?
+    tours = pending_approval_tours.includes(:user).order(:submitted_at).to_a
+    claims = pending_approval_claims.includes(:user).order(:submitted_at).to_a
+    return if people.empty? && modes.empty? && tours.empty? && claims.empty?
 
     if people.any?
       names = people.first(10).map do |p|
@@ -125,6 +135,16 @@ class User < ApplicationRecord
     if modes.any?
       errors.add(:base, "Cannot deactivate #{name}: they are an approver for travel mode #{modes.join(', ')}. " \
                         "Remove them from Masters → Travel Modes first.")
+    end
+    if tours.any? || claims.any?
+      items = tours.map { |t| "#{t.type_local? ? 'Local mileage plan' : 'Tour plan'} of #{t.user.name} (#{t.user.emp_code})" } +
+              claims.map { |c| "#{c.type_local? ? 'Local mileage claim' : 'TA/DA claim'} of #{c.user.name} (#{c.user.emp_code})" }
+      list = items.first(10)
+      list << "and #{items.size - 10} more" if items.size > 10
+      counts = [ (tours.any? ? "#{tours.size} tour plan#{'s' unless tours.size == 1}" : nil),
+                 (claims.any? ? "#{claims.size} claim#{'s' unless claims.size == 1}" : nil) ].compact.join(" and ")
+      errors.add(:base, "Cannot deactivate #{name}: #{counts} still pending with them for approval: #{list.join('; ')}. " \
+                        "They must approve / reject (or answer) these first, then deactivate.")
     end
   end
 

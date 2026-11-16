@@ -24,4 +24,18 @@ class UserDeactivationTest < ActiveSupport::TestCase
     @emp.update!(active: false)
     assert @boss.update(active: false)
   end
+
+  test "approver with a pending tour plan cannot be deactivated until it is decided" do
+    emp = user("1025"); l1 = User.create!(emp_code: "L1D1", name: "Old L1", password: "123456")
+    emp.update!(reporting_manager: l1, l2_manager: nil)
+    tour = emp.tours.create!(send_now: true, from_date: Date.current + 5, to_date: Date.current + 6,
+      tour_visits_attributes: [ { visit_date: Date.current + 5, place: "Indore", planned_activity: "Review" } ])
+    emp.update!(reporting_manager: @boss)   # new L-1 set, but the plan already sent still waits with Old L1
+
+    refute l1.update(active: false)
+    assert_match(/1 tour plan still pending with them for approval: Tour plan of #{emp.name}/, l1.errors.full_messages.join)
+
+    tour.approve!(by: l1, remark: "ok")
+    assert l1.reload.update(active: false)
+  end
 end
