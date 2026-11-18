@@ -2,7 +2,7 @@
 <%# pass f (form builder) to let reviewers edit deductions %>
 <% tour = claim.tour; u = claim.user %>
 <div data-controller="review-calc" data-review-calc-advance-value="<%= claim.advance_amount.to_d %>">
-<div class="card mb-4 flex flex-wrap items-center gap-x-5 gap-y-1 px-4 py-2.5 text-sm sm:px-5">
+<div class="card claimant-card mb-4 flex flex-wrap items-center gap-x-5 gap-y-1 px-4 py-2.5 text-sm sm:px-5">
   <%# name on the first line; Location and Duration under it %>
   <span class="flex items-center gap-2.5"><%= avatar(u, size: "h-9 w-9 text-xs") %>
     <span class="leading-tight">
