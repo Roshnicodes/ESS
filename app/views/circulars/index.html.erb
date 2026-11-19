@@ -4,6 +4,7 @@
   <%= link_to masters_circulars_path, class: "btn-light" do %><%= icon(:cog) %> Manage<% end if current_user.admin? %>
 <% end %>
 
+<%= render "shared/search_bar", url: circulars_path, placeholder: "Search IOM / Circular – topic, number, words in it…" %>
 <div class="card overflow-hidden fade-up">
   <ul class="divide-y divide-white/70">
     <% @circulars.each do |c| %>

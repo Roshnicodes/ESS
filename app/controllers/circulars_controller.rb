@@ -1,9 +1,11 @@
 # Employee side: read the IOMs / Circulars addressed to them and open the attachments.
 class CircularsController < ApplicationController
+  include ListSearch
   before_action :set_circular, only: %i[show attachment]
 
   def index
-    @circulars = scope.includes(:created_by).with_attached_attachments.newest_first.page(params[:page]).per(20)
+    @circulars = search_columns(scope, %w[circulars.topic circulars.description circulars.topic_type])
+                   .includes(:created_by).with_attached_attachments.newest_first.page(params[:page]).per(20)
   end
 
   def show

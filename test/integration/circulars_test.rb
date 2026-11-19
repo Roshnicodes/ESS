@@ -6,6 +6,19 @@ class CircularsTest < ActionDispatch::IntegrationTest
     @file = Rack::Test::UploadedFile.new(Rails.root.join("test/fixtures/files/passbook.png"), "image/png")
   end
 
+  test "the IOM lists can be searched by topic" do
+    Circular.create!(topic_type: "iom", topic: "Office timing change", audience: "all", active: true, created_by: @admin)
+    Circular.create!(topic_type: "iom", topic: "Holi holiday list", audience: "all", active: true, created_by: @admin)
+    sign_in @admin
+    get masters_circulars_path(q: "timing")
+    assert_match "Office timing change", response.body
+    assert_no_match "Holi holiday list", response.body
+    sign_in @emp
+    get circulars_path(q: "holi")
+    assert_match "Holi holiday list", response.body
+    assert_no_match "Office timing change", response.body
+  end
+
   test "admin publishes an IOM for all employees and everyone is notified" do
     sign_in @admin
     get new_masters_circular_path

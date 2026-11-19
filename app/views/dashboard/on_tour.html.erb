@@ -4,10 +4,11 @@
   <%= print_button %>
 <% end %>
 
-<div class="card overflow-hidden fade-up" data-controller="dialog">
+<div class="card overflow-hidden fade-up" data-controller="dialog table-filter">
+  <%= render "shared/table_filter_field", placeholder: "Search name, code, location, place…" %>
   <div class="overflow-x-auto"><table class="tbl tbl-hover tbl-stack">
     <thead><tr><th>Employee</th><th>Tour</th><th>Today at</th><th>Tour Plan status</th><th class="text-right no-print">Details</th></tr></thead>
-    <tbody>
+    <tbody data-table-filter-target="body">
     <% @tours.each do |t| %>
       <% u = t.user; today_places = t.tour_visits.select { |v| v.visit_date == @day }.map(&:place).compact_blank.uniq %>
       <tr class="cursor-pointer" data-action="click->dialog#open" data-dialog-id-param="tour-<%= t.id %>">
