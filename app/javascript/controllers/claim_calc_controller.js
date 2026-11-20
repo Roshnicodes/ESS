@@ -33,7 +33,7 @@ export default class extends Controller {
     const q = (k) => row.querySelector(`[data-calc="${k}"]`)
     const changed = event?.target && row.contains(event.target) ? event.target.dataset.calc : null
     const amountEl = q("amount")
-    const deduction = this.num(q("deduction")?.dataset.value)
+    const deduction = this.num(q("deduction")?.value)
 
     // NA (not applicable) in A or B: nothing to fill, amount ₹0
     if (kind === "city" || kind === "local") {
