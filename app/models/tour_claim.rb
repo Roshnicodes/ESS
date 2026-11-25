@@ -218,8 +218,16 @@ class TourClaim < ApplicationRecord
       chain = m.tatkal_chain.map { |a| [ a.user_id, a.position ] }
       needs << [ "#{m.name} – Tatkal", chain ] if chain.any?
     end
+    # local mileage sent after the cutoff (allowed by PD HR) → the COO approves last, before Finance
+    if late_local_claim? && (coo = LateClaimRequest.coo)
+      needs << [ "Late claim (after cutoff)", [ [ coo.id, LATE_CLAIM_COO_POSITION ] ] ]
+    end
     needs
   end
+
+  LATE_CLAIM_COO_POSITION = 99   # after every other extra approver
+
+  def late_local_claim? = type_local? && local_claim_month.present? && LateClaimRequest.approved_for?(user, local_claim_month)
 
   def extra_reason = extra_needs.map(&:first).uniq.join(", ").presence
   def pending_steps = approval_steps.reject(&:done?)

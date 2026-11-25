@@ -11,8 +11,9 @@
 # before day C of the next month. An October claim saved but never sent is therefore
 # dead from 06-Nov (C = 5) – the employee is told so instead of silently failing.
 #
-# Late claim: after the cutoff the employee may ask the COO (LateClaimRequest) for the month that
-# just closed; once the COO approves, that month is open again for that employee.
+# Late claim: after the cutoff the employee may ask PD HR (LateClaimRequest) for the month that
+# just closed; once PD HR approves, that month is open again for that employee (the claim then has
+# the COO as its last approver).
 class LocalMileagePeriod
   attr_reader :user, :today
 
@@ -61,7 +62,7 @@ class LocalMileagePeriod
   def closed_message(claim_month)
     "Local mileage for #{claim_month.to_date.strftime('%b-%Y')} can no longer be filled or sent – " \
     "the last date was #{deadline_for(claim_month).strftime('%d/%m/%Y')} (cutoff day #{cutoff_day} of the next month). " \
-    "Ask the COO for a late claim from Local Mileage History."
+    "Ask PD HR for a late claim from Local Mileage History."
   end
 
   def already_claimed?

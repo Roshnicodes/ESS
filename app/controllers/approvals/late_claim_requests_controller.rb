@@ -1,18 +1,18 @@
-# COO: late local mileage claims (asked after the cutoff day) – approve or reject with a remark.
+# PD HR: late local mileage claims (asked after the cutoff day) – approve or reject with a remark.
+# Approved → the employee can fill that month; the claim then has the COO as its last approver.
 class Approvals::LateClaimRequestsController < ApplicationController
-  before_action -> { redirect_to authenticated_root_path, alert: "Only the COO can see late claim requests." unless LateClaimRequest.decider?(current_user) || current_user.admin? }
+  before_action -> { redirect_to authenticated_root_path, alert: "Only PD HR can see late claim requests." unless LateClaimRequest.decider?(current_user) || current_user.admin? }
   before_action :set_request, only: %i[approve reject]
 
   def index
-    mine = current_user.admin? ? LateClaimRequest.all : LateClaimRequest.where(approver: current_user)
-    mine = mine.includes(user: :location, decided_by: [], approver: [])
-    @pending = mine.pending.order(:created_at)
-    @decided = mine.where.not(status: "pending").order(decided_at: :desc).limit(50)
+    all = LateClaimRequest.includes(:decided_by, user: :location)
+    @pending = all.pending.order(:created_at)
+    @decided = all.where.not(status: "pending").order(decided_at: :desc).limit(50)
   end
 
   def approve
     @request.approve!(by: current_user, remark: params[:remark])
-    redirect_to approvals_late_claim_requests_path, notice: "Allowed – #{@request.user.name} can now fill the #{@request.month_label} claim."
+    redirect_to approvals_late_claim_requests_path, notice: "Allowed – #{@request.user.name} can now fill the #{@request.month_label} claim (COO gives its last approval)."
   end
 
   def reject

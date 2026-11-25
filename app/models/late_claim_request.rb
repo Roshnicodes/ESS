@@ -1,5 +1,7 @@
-# Local mileage after the cutoff day: the employee writes why the claim is late and asks the COO.
-# Approved (with a remark) → that month opens again for that employee only; rejected → stays closed.
+# Local mileage after the cutoff day: the employee writes why the claim is late and asks PD HR.
+# Any PD HR approves (with a remark) → that month opens again for that employee only; rejected → stays
+# closed. The claim then sent goes L1 → L2 → … with the COO as the last approver before Finance
+# (see TourClaim#extra_needs).
 class LateClaimRequest < ApplicationRecord
   include Auditable
 
@@ -9,7 +11,7 @@ class LateClaimRequest < ApplicationRecord
   enum :status, STATUSES, validate: true
 
   belongs_to :user
-  belongs_to :approver,   class_name: "User", optional: true
+  belongs_to :approver,   class_name: "User", optional: true   # not used: any PD HR decides
   belongs_to :decided_by, class_name: "User", optional: true
 
   validates :claim_month, presence: true
@@ -19,15 +21,14 @@ class LateClaimRequest < ApplicationRecord
   validate  :month_is_closed, on: :create
 
   before_validation { self.claim_month = claim_month&.beginning_of_month }
-  before_validation(on: :create) { self.approver ||= self.class.coo }
 
   scope :open_or_approved, -> { where(status: %w[pending approved]) }
   scope :newest_first, -> { order(created_at: :desc, id: :desc) }
 
-  # The COO (designation "COO") decides every late request.
+  # The COO (designation "COO") is the last approver of a late claim.
   def self.coo = User.where(active: true).where("UPPER(TRIM(designation)) = ?", COO_DESIGNATION).order(:id).first
-
-  def self.decider?(user) = user.present? && (user.id == coo&.id || where(approver_id: user.id).exists?)
+  def self.hr_people = User.where(active: true, role: "pd_hr").to_a
+  def self.decider?(user) = user.present? && user.pd_hr?
 
   def self.approved_for?(user, month)
     user && month && approved.exists?(user_id: user.id, claim_month: month.to_date.beginning_of_month)
@@ -35,14 +36,16 @@ class LateClaimRequest < ApplicationRecord
 
   def month_label = claim_month.strftime("%b-%Y")
 
-  def decidable_by?(by) = pending? && by.present? && (by.id == approver_id || (approver_id.nil? && by.id == self.class.coo&.id))
+  def decidable_by?(by) = pending? && by.present? && by.pd_hr? && by.id != user_id
 
   def ask!
     transaction do
       save!
       log_activity!(:late_claim_requested, actor: user, to: status, remark: reason, details: { month: month_label })
-      push approver, :late_claim_pending, "Late local mileage claim – your approval",
-           "#{user.name} (#{user.emp_code}) wants to claim local mileage for #{month_label} after the cutoff", "/approvals/late_claim_requests", reason
+      self.class.hr_people.each do |hr|
+        push hr, user, :late_claim_pending, "Late local mileage claim – your approval (PD HR)",
+             "#{user.name} (#{user.emp_code}) wants to claim local mileage for #{month_label} after the cutoff", reason
+      end
     end
     self
   end
@@ -60,21 +63,21 @@ class LateClaimRequest < ApplicationRecord
       update!(status: to.to_s, decided_by: by, decided_at: Time.current, decision_remark: remark.strip)
       log_activity!(:"late_claim_#{to}", actor: by, from: from, to: status, remark: remark, details: { month: month_label })
       if approved?
-        push user, :late_claim_approved, "Late claim allowed – fill #{month_label} local mileage",
-             "COO #{by.name} allowed your #{month_label} local mileage claim", "/tours?type=local", remark
+        push user, by, :late_claim_approved, "Late claim allowed – fill #{month_label} local mileage",
+             "PD HR #{by.name} allowed your #{month_label} local mileage claim (COO gives the last approval of the claim)", remark
       else
-        push user, :late_claim_rejected, "Late claim not allowed for #{month_label}",
-             "COO #{by.name} did not allow your #{month_label} local mileage claim", "/tours?type=local", remark
+        push user, by, :late_claim_rejected, "Late claim not allowed for #{month_label}",
+             "PD HR #{by.name} did not allow your #{month_label} local mileage claim", remark
       end
     end
     self
   end
 
-  def push(to, kind, title, body, url, remark)
-    return if to.nil? || to == user && kind == :late_claim_pending
+  def push(to, actor, kind, title, body, remark)
+    return if to.nil? || to == actor
     body = "#{body} – “#{remark.to_s.strip}”" if remark.present?
-    Notification.create!(user: to, actor: (kind == :late_claim_pending ? user : decided_by), notifiable: self,
-                         kind: kind.to_s, title: title.first(200), body: body, url: url)
+    url = to == user ? "/tours?type=local" : "/approvals/late_claim_requests"
+    Notification.create!(user: to, actor: actor, notifiable: self, kind: kind.to_s, title: title.first(200), body: body, url: url)
   end
 
   def one_open_request
@@ -89,6 +92,6 @@ class LateClaimRequest < ApplicationRecord
     period = LocalMileagePeriod.new(user)
     errors.add(:base, "#{month_label} is still open – no approval needed") unless period.past_deadline?(claim_month)
     errors.add(:base, "Late claim can be asked only for #{period.late_month.strftime('%b-%Y')}") unless claim_month == period.late_month
-    errors.add(:base, "No COO found to approve the request – contact PD HR") if approver.nil?
+    errors.add(:base, "No PD HR found to approve the request") if self.class.hr_people.empty?
   end
 end

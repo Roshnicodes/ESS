@@ -12,7 +12,7 @@
   pays = current_user.finance_person?
   awaiting_payment = pays ? TourClaim.awaiting_payment.payable_by(current_user).count : 0
   late_decider = LateClaimRequest.decider?(current_user)
-  late_pending = late_decider ? LateClaimRequest.pending.where(approver: current_user).count : 0
+  late_pending = late_decider ? LateClaimRequest.pending.count : 0
 %>
 <nav class="space-y-0.5">
   <%= link.("Dashboard", authenticated_root_path, :home) %>
