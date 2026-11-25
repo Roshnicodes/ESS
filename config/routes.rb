@@ -22,8 +22,16 @@ Rails.application.routes.draw do
 
   # Local Mileage Claim menu – B. Local Travel form directly (as on live ESS)
   resource :local_mileage, only: %i[new create]
+  # after the cutoff day: ask the COO to allow last month's local mileage claim
+  resources :late_claim_requests, only: :create
 
   namespace :approvals do
+    resources :late_claim_requests, only: :index do
+      member do
+        patch :approve
+        patch :reject
+      end
+    end
     resources :tours, only: %i[index show] do
       get :done, on: :collection   # tours I have already acted on
       member do

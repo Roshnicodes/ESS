@@ -838,6 +838,44 @@ ALTER SEQUENCE public.claim_visit_reports_id_seq OWNED BY public.claim_visit_rep
 
 
 --
+-- Name: late_claim_requests; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.late_claim_requests (
+    id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    claim_month date NOT NULL,
+    reason text NOT NULL,
+    status character varying DEFAULT 'pending'::character varying NOT NULL,
+    approver_id bigint,
+    decided_by_id bigint,
+    decided_at timestamp(6) without time zone,
+    decision_remark text,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: late_claim_requests_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.late_claim_requests_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: late_claim_requests_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.late_claim_requests_id_seq OWNED BY public.late_claim_requests.id;
+
+
+--
 -- Name: locations; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1230,6 +1268,7 @@ CREATE TABLE public.tours (
     l2_approved_by_id bigint,
     l2_approved_at timestamp(6) without time zone,
     l2_remark character varying(500),
+    approved_days integer,
     CONSTRAINT chk_tours_approved_at CHECK ((((status)::text <> 'approved'::text) OR (approved_at IS NOT NULL))),
     CONSTRAINT chk_tours_cancel_needs_remark CHECK ((((status)::text <> 'cancelled'::text) OR ((cancelled_at IS NOT NULL) AND (cancel_remark IS NOT NULL) AND (length(btrim(cancel_remark)) > 0)))),
     CONSTRAINT chk_tours_date_order CHECK ((to_date >= from_date)),
@@ -1545,6 +1584,13 @@ ALTER TABLE ONLY public.claim_visit_reports ALTER COLUMN id SET DEFAULT nextval(
 
 
 --
+-- Name: late_claim_requests id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.late_claim_requests ALTER COLUMN id SET DEFAULT nextval('public.late_claim_requests_id_seq'::regclass);
+
+
+--
 -- Name: locations id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -1802,6 +1848,14 @@ ALTER TABLE ONLY public.claim_visit_reports
 
 ALTER TABLE ONLY public.tours
     ADD CONSTRAINT excl_tours_no_overlap EXCLUDE USING gist (user_id WITH =, daterange(from_date, to_date, '[]'::text) WITH &&) WHERE ((((tour_type)::text = 'tour'::text) AND ((status)::text = ANY ((ARRAY['submitted'::character varying, 'l1_approved'::character varying, 'l2_approved'::character varying, 'approved'::character varying])::text[])) AND (deleted_at IS NULL)));
+
+
+--
+-- Name: late_claim_requests late_claim_requests_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.late_claim_requests
+    ADD CONSTRAINT late_claim_requests_pkey PRIMARY KEY (id);
 
 
 --
@@ -2305,6 +2359,41 @@ CREATE INDEX index_claim_visit_reports_on_tour_claim_id_and_visit_date ON public
 --
 
 CREATE INDEX index_claim_visit_reports_on_tour_visit_id ON public.claim_visit_reports USING btree (tour_visit_id);
+
+
+--
+-- Name: index_late_claim_requests_on_approver_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_late_claim_requests_on_approver_id ON public.late_claim_requests USING btree (approver_id);
+
+
+--
+-- Name: index_late_claim_requests_on_approver_id_and_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_late_claim_requests_on_approver_id_and_status ON public.late_claim_requests USING btree (approver_id, status);
+
+
+--
+-- Name: index_late_claim_requests_on_decided_by_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_late_claim_requests_on_decided_by_id ON public.late_claim_requests USING btree (decided_by_id);
+
+
+--
+-- Name: index_late_claim_requests_on_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_late_claim_requests_on_user_id ON public.late_claim_requests USING btree (user_id);
+
+
+--
+-- Name: index_late_claim_requests_one_open_per_month; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_late_claim_requests_one_open_per_month ON public.late_claim_requests USING btree (user_id, claim_month) WHERE ((status)::text = ANY ((ARRAY['pending'::character varying, 'approved'::character varying])::text[]));
 
 
 --
@@ -2883,6 +2972,14 @@ ALTER TABLE ONLY public.tour_claims
 
 
 --
+-- Name: late_claim_requests fk_rails_13c1e78b21; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.late_claim_requests
+    ADD CONSTRAINT fk_rails_13c1e78b21 FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
 -- Name: tours fk_rails_1489ad0ecf; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3096,6 +3193,14 @@ ALTER TABLE ONLY public.tour_claims
 
 ALTER TABLE ONLY public.tours
     ADD CONSTRAINT fk_rails_6d5f346c9b FOREIGN KEY (l3_approver_id) REFERENCES public.users(id);
+
+
+--
+-- Name: late_claim_requests fk_rails_709d7fe42d; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.late_claim_requests
+    ADD CONSTRAINT fk_rails_709d7fe42d FOREIGN KEY (approver_id) REFERENCES public.users(id);
 
 
 --
@@ -3395,6 +3500,14 @@ ALTER TABLE ONLY public.activity_logs
 
 
 --
+-- Name: late_claim_requests fk_rails_e13cf92a66; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.late_claim_requests
+    ADD CONSTRAINT fk_rails_e13cf92a66 FOREIGN KEY (decided_by_id) REFERENCES public.users(id);
+
+
+--
 -- Name: users fk_rails_e87c082329; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3473,6 +3586,7 @@ ALTER TABLE ONLY public.projects
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261125100001'),
 ('20261106120001'),
 ('20261105120001'),
 ('20261105100001'),

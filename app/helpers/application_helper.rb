@@ -116,7 +116,9 @@ module ApplicationHelper
     "circular_created" => "IOM / Circular published", "circular_updated" => "IOM / Circular edited",
     "circular_notified" => "IOM / Circular notification sent", "circular_activated" => "IOM / Circular activated",
     "circular_deactivated" => "IOM / Circular deactivated",
-    "payment_recorded" => "Payment UTR recorded", "payment_utr_corrected" => "Payment UTR corrected"
+    "payment_recorded" => "Payment UTR recorded", "payment_utr_corrected" => "Payment UTR corrected",
+    "late_claim_requested" => "Late claim asked from COO", "late_claim_approved" => "Late claim allowed by COO",
+    "late_claim_rejected" => "Late claim refused by COO"
   }.freeze
 
   # Older local-mileage records used an "approved" activity with this remark.  It

@@ -6,7 +6,7 @@ class LocalMileagesController < ApplicationController
 
   def new
     authorize! :create, Tour
-    if (existing = current_user.tours.type_local.live.find_by(claim_month: @period.month))
+    if (existing = current_user.tours.type_local.live.find_by(claim_month: @month))
       claim = existing.tour_claim
       return redirect_to(new_tour_claim_path(existing)) if claim.nil?
       return redirect_to(claim.maker_editable? ? edit_tour_claim_path(existing) : tour_claim_path(existing))
@@ -18,7 +18,7 @@ class LocalMileagesController < ApplicationController
   def create
     authorize! :create, Tour
     Tour.transaction do
-      @tour = current_user.tours.create!(tour_type: "local", general_description: "local travel milage claim")
+      @tour = current_user.tours.create!(tour_type: "local", general_description: "local travel milage claim", late_month: late_param)
       @claim = TourClaim.build_for(@tour)
       @claim.assign_attributes(claim_params)
       @claim.submitting = params[:commit_action] == "submit"
@@ -30,7 +30,7 @@ class LocalMileagesController < ApplicationController
   rescue ActiveRecord::RecordInvalid => e
     if @tour&.persisted? && @claim
       # tour got rolled back with the claim – show the form again with the typed rows
-      @tour = current_user.tours.new(tour_type: "local").tap { |t| t.valid? }
+      @tour = current_user.tours.new(tour_type: "local", late_month: late_param).tap { |t| t.valid? }
       errors = e.record.errors.full_messages
       kept = @claim.claim_local_travels.map { |l| l.attributes.slice(*%w[travel_date place_from place_to travel_mode_id meter_from meter_to kilometers purpose amount]) }
       @claim = TourClaim.build_for(@tour)
@@ -41,7 +41,7 @@ class LocalMileagesController < ApplicationController
       e.record.errors.full_messages.each { |m| @claim.errors.add(:base, m) }
     end
     @claim.claim_local_travels.build if @claim.claim_local_travels.empty?
-    @form_url = local_mileage_path
+    @form_url = local_mileage_path(month: late_param)
     render "tour_claims/edit", status: :unprocessable_entity
   end
 
@@ -49,14 +49,18 @@ class LocalMileagesController < ApplicationController
 
   def set_period
     @period = LocalMileagePeriod.new(current_user)
+    @month  = @period.claim_month_for(params[:month])   # the late month only when the COO allowed it
   end
 
+  # ?month=YYYY-MM is kept only when it is the late month the COO allowed
+  def late_param = (@month.strftime("%Y-%m") if @month != @period.month)
+
   def build_unsaved
-    @tour = current_user.tours.new(tour_type: "local", general_description: "local travel milage claim")
-    @tour.valid?   # fills claim month / dates from the cutoff rule
+    @tour = current_user.tours.new(tour_type: "local", general_description: "local travel milage claim", late_month: late_param)
+    @tour.valid?   # fills claim month / dates from the cutoff rule (or the late month the COO allowed)
     @claim = TourClaim.build_for(@tour)
     @claim.claim_local_travels.build
-    @form_url = local_mileage_path
+    @form_url = local_mileage_path(month: late_param)
   end
 
   def claim_params

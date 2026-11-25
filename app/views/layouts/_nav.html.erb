@@ -11,6 +11,8 @@
   unread_circulars = current_user.notifications.unread.where(notifiable_type: "Circular").count
   pays = current_user.finance_person?
   awaiting_payment = pays ? TourClaim.awaiting_payment.payable_by(current_user).count : 0
+  late_decider = LateClaimRequest.decider?(current_user)
+  late_pending = late_decider ? LateClaimRequest.pending.where(approver: current_user).count : 0
 %>
 <nav class="space-y-0.5">
   <%= link.("Dashboard", authenticated_root_path, :home) %>
@@ -24,8 +26,9 @@
         title: "Apply for leave in HROne – opens in a new tab" do %><%= icon(:calendar) %><span class="truncate">Leave</span><%= icon(:arrow_right, "ml-auto h-3.5 w-3.5 -rotate-45 opacity-50") %><% end %>
 
   <%# Approvals only for L1 / L2 / L3 / Finance / PD Finance / HR / admin %>
-  <% if tour_appr || claim_appr %>
+  <% if tour_appr || claim_appr || late_decider %>
     <div class="nav-head">Approvals</div>
+    <%= link.("Late Claim Requests", approvals_late_claim_requests_path, :calendar, count: late_pending, alert: true) if late_decider %>
     <% if tour_appr %>
       <%= link.("Pending Tour Approval", approvals_tours_path, :check_badge, count: pending_tours) %>
       <%= link.("Tour Approval History", done_approvals_tours_path, :clock) %>

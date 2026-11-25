@@ -37,7 +37,8 @@ class EssMailRelay
     "tour_rejected" => "rejected", "claim_rejected" => "rejected",
     "tour_cancelled" => "cancelled", "tour_deleted" => "deleted", "claim_closed" => "closed",
     "tour_info" => "information", "claim_info" => "information", "claim_query_info" => "information",
-    "circular_published" => "information", "claim_paid" => "approved"
+    "circular_published" => "information", "claim_paid" => "approved",
+    "late_claim_pending" => "pending", "late_claim_approved" => "approved", "late_claim_rejected" => "rejected"
   }.freeze
 
   def self.url = ENV["ESS_MAIL_RELAY_URL"].to_s.strip

@@ -1,0 +1,51 @@
+<% content_for :title, "Late Claim Requests" %>
+<%= page_header("Late Local Mileage Claims", "Employees who missed the cutoff day ask to claim last month – allow or refuse with a remark", icon_name: :calendar) do %>
+  <%= print_button %>
+<% end %>
+
+<div class="card mb-5 overflow-hidden fade-up">
+  <div class="card-head"><span class="card-title"><span class="icon-chip bg-amber-50 text-amber-600"><%= icon(:clock) %></span>Waiting for you</span><span class="muted"><%= @pending.size %></span></div>
+  <div class="overflow-x-auto"><table class="tbl tbl-stack">
+    <thead><tr><th>Employee</th><th>Month</th><th>Reason</th><th>Asked on</th><th class="no-print">Your decision</th></tr></thead>
+    <tbody>
+    <% @pending.each do |r| %>
+      <tr>
+        <td data-label="Employee"><div class="flex items-center gap-2.5"><%= avatar(r.user, size: "h-8 w-8 text-xs") %><div class="leading-tight"><b><%= r.user.name %></b><div class="muted"><%= [r.user.emp_code, r.user.location].compact_blank.join(" · ") %></div></div></div></td>
+        <td data-label="Month" class="whitespace-nowrap font-semibold"><%= r.month_label %></td>
+        <td data-label="Reason" class="max-w-72 text-sm text-slate-700"><%= r.reason %></td>
+        <td data-label="Asked on" class="whitespace-nowrap text-xs text-slate-600"><%= dt(r.created_at) %></td>
+        <td class="no-print">
+          <%= form_with url: approve_approvals_late_claim_request_path(r), method: :patch, class: "flex min-w-64 flex-col gap-2", data: { turbo: false } do %>
+            <%= text_area_tag :remark, nil, id: "remark_#{r.id}", rows: 2, required: true, maxlength: 2000, class: "inp", placeholder: "Remark (required)" %>
+            <div class="flex justify-end gap-2">
+              <%= button_tag formaction: reject_approvals_late_claim_request_path(r), class: "btn-soft-danger btn-xs", data: { turbo_confirm: "Refuse the late claim of #{r.user.name} for #{r.month_label}?" } do %><%= icon(:x_circle) %> Reject<% end %>
+              <%= button_tag class: "btn-success btn-xs", data: { turbo_confirm: "Allow #{r.user.name} to claim #{r.month_label}?" } do %><%= icon(:check) %> Approve<% end %>
+            </div>
+          <% end %>
+        </td>
+      </tr>
+    <% end %>
+    <%= empty_row(5, "No late claim request waiting", icon_name: :check_circle) if @pending.empty? %>
+    </tbody>
+  </table></div>
+</div>
+
+<div class="card overflow-hidden fade-up">
+  <div class="card-head"><span class="card-title">Decided</span><span class="muted">latest 50</span></div>
+  <div class="overflow-x-auto"><table class="tbl tbl-stack">
+    <thead><tr><th>Employee</th><th>Month</th><th>Reason</th><th>Decision</th><th>Remark</th></tr></thead>
+    <tbody>
+    <% @decided.each do |r| %>
+      <tr>
+        <td data-label="Employee"><b><%= r.user.name %></b> <span class="muted">(<%= r.user.emp_code %>)</span></td>
+        <td data-label="Month" class="whitespace-nowrap"><%= r.month_label %></td>
+        <td data-label="Reason" class="max-w-72 text-sm text-slate-600"><%= r.reason %></td>
+        <td data-label="Decision" class="whitespace-nowrap"><span class="badge <%= r.approved? ? 'bg-emerald-50 text-emerald-700 ring-emerald-300/60' : 'bg-rose-50 text-rose-700 ring-rose-300/60' %>"><%= r.approved? ? "Allowed" : "Refused" %></span>
+          <div class="muted mt-0.5"><%= r.decided_by %> · <%= dt(r.decided_at) %></div></td>
+        <td data-label="Remark" class="max-w-72 text-sm text-slate-600"><%= r.decision_remark %></td>
+      </tr>
+    <% end %>
+    <%= empty_row(5, "Nothing decided yet") if @decided.empty? %>
+    </tbody>
+  </table></div>
+</div>

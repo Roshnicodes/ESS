@@ -42,12 +42,18 @@ class Tour < ApplicationRecord
   scope :planned_on, ->(day) { type_tour.where(status: %w[submitted l1_approved l2_approved approved]).where("from_date <= :d AND to_date >= :d", d: day) }
 
   attr_accessor :send_now   # "Save & Send for Approval" vs plain "Save"
+  attr_accessor :late_month         # local mileage for the month the COO allowed after the cutoff
+  attr_accessor :skip_length_rule   # admin corrections are not limited by the tour length rule
+
+  MAX_DAYS = 10        # a tour plan is at most 10 days long
+  MAX_EXTENSION = 3    # an approved tour may be extended by at most 3 days (still within 10)
 
   validates :from_date, :to_date, presence: true
   validates :submitted_at, presence: true, unless: -> { draft? || cancelled? }
   validates :general_description, length: { maximum: 2000 }
   validate  :date_order
   validate  :within_plan_window, if: -> { type_tour? && (new_record? || will_save_change_to_from_date? || will_save_change_to_to_date?) }
+  validate  :length_allowed, if: -> { type_tour? && !skip_length_rule && (new_record? || will_save_change_to_from_date? || will_save_change_to_to_date?) }
   validate  :visits_inside_range
   validate  :tour_needs_visits, if: -> { type_tour? && !draft? }
   validate  :no_overlap, if: -> { type_tour? && status.in?(LIVE) }
@@ -231,6 +237,7 @@ class Tour < ApplicationRecord
         self.approved_at = Time.current
         self.decided_by = by
         self.decision_remark = remark.presence
+        self.approved_days ||= days   # first approval: the length an extension is measured from
       end
     end
   end
@@ -283,6 +290,7 @@ class Tour < ApplicationRecord
     with_lock do
       before_visits = tour_visits.map { |v| [ v.visit_date.to_s, v.place, v.travel_mode&.name, v.planned_activity ] }
       assign_attributes(attrs)
+      self.skip_length_rule = true
       changes = self.changes.slice("from_date", "to_date", "general_description").transform_values { |a| a.map(&:to_s) }
       save!
       after_visits = tour_visits.reload.map { |v| [ v.visit_date.to_s, v.place, v.travel_mode&.name, v.planned_activity ] }
@@ -375,9 +383,9 @@ class Tour < ApplicationRecord
     assign_approvers if user && type_tour?
     if type_local? && user
       period = LocalMileagePeriod.new(user)
-      self.claim_month = period.month
-      self.from_date   = period.from_date
-      self.to_date     = period.to_date
+      self.claim_month = period.claim_month_for(late_month)   # the normal month, or the late month the COO allowed
+      self.from_date   = claim_month
+      self.to_date     = claim_month.end_of_month
       # Local mileage plan is self-sanctioned; its money claim goes through approval.
       self.status      = "approved"
       self.approver    = user
@@ -401,6 +409,18 @@ class Tour < ApplicationRecord
     last = self.class.latest_plan_date
     if (from_date && from_date > last) || (to_date && to_date > last)
       errors.add(:base, "Tour can be planned only till #{last.strftime('%d/%m/%Y')} (current and next month)")
+    end
+  end
+
+  # New plan: at most 10 days. Approved plan edited later: at most 3 days more than it was first
+  # approved for, and still at most 10 days. Shorter is always fine.
+  def length_allowed
+    return unless from_date && to_date && to_date >= from_date
+    if days > MAX_DAYS
+      errors.add(:base, "A tour plan can be at most #{MAX_DAYS} days (this one is #{days} days)")
+    elsif approved_days && days > approved_days + MAX_EXTENSION
+      errors.add(:base, "An approved tour can be extended by at most #{MAX_EXTENSION} days – it was approved for " \
+                        "#{approved_days} days, so it can be at most #{approved_days + MAX_EXTENSION} days (this one is #{days} days)")
     end
   end
 

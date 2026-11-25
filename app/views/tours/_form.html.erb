@@ -12,7 +12,8 @@
       <% if @tour.persisted? %><span class="flex items-center gap-2 text-xs"><%= tour_type_label(@tour) %> <%= tour_status_badge(@tour, label: @tour.draft? ? "Saved" : nil) %></span><% end %></div>
     <div class="card-body grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       <div><%= f.label :from_date, "Tour From-Date", class: "lbl" %><%= f.date_field :from_date, class: "inp", required: true, max: Tour.latest_plan_date, data: { date_range_target: "from" } %></div>
-      <div><%= f.label :to_date, "Tour To-Date", class: "lbl" %><%= f.date_field :to_date, class: "inp", required: true, max: Tour.latest_plan_date, data: { date_range_target: "to" } %></div>
+      <div><%= f.label :to_date, "Tour To-Date", class: "lbl" %><%= f.date_field :to_date, class: "inp", required: true, max: Tour.latest_plan_date, data: { date_range_target: "to" } %>
+        <p class="mt-1 text-xs text-slate-500"><% if @tour.approved_days %>Approved for <%= @tour.approved_days %> days – can be extended to at most <%= [@tour.approved_days + Tour::MAX_EXTENSION, Tour::MAX_DAYS].min %> days<% else %>A tour plan can be at most <%= Tour::MAX_DAYS %> days<% end %></p></div>
       <div class="sm:col-span-2">
         <span class="lbl">Approval</span>
         <div class="grid gap-2 sm:grid-cols-2">

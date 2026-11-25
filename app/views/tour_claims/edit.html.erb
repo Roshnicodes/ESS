@@ -15,6 +15,8 @@
     <div>
       <% if @claim.local_month_closed? %>
         <b>This month is closed.</b> <%= @claim.local_month_closed_message %>
+      <% elsif @claim.local_period.past_deadline?(@tour.claim_month) %>
+        <b>Late claim allowed by the COO</b> for <b><%= @tour.claim_month.strftime("%b-%Y") %></b> – fill it and send it to L1.
       <% else %>
         Send this <b><%= @tour.claim_month.strftime("%b-%Y") %></b> claim to L1 on or before <b><%= d(send_by) %></b>.
         After that date it cannot be filled or sent.

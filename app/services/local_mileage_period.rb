@@ -10,6 +10,9 @@
 # The same day closes the month for good: a claim of month M must reach L1 on or
 # before day C of the next month. An October claim saved but never sent is therefore
 # dead from 06-Nov (C = 5) – the employee is told so instead of silently failing.
+#
+# Late claim: after the cutoff the employee may ask the COO (LateClaimRequest) for the month that
+# just closed; once the COO approves, that month is open again for that employee.
 class LocalMileagePeriod
   attr_reader :user, :today
 
@@ -37,14 +40,28 @@ class LocalMileagePeriod
     nxt + [ cutoff_day, nxt.end_of_month.day ].min - 1
   end
 
-  # True once that month can no longer be sent.
-  def closed?(claim_month) = today > deadline_for(claim_month)
+  # The cutoff of that month has passed.
+  def past_deadline?(claim_month) = today > deadline_for(claim_month)
+
+  # True once that month can no longer be sent (unless the COO allowed a late claim).
+  def closed?(claim_month) = past_deadline?(claim_month) && !late_approved?(claim_month)
+
+  # The month a late claim may be asked for: the one just before the month now shown.
+  def late_month = month.prev_month
+
+  def late_approved?(claim_month) = LateClaimRequest.approved_for?(user, claim_month)
+
+  # Month to use for a new local mileage form: the late month when asked for and allowed, else the normal one.
+  def claim_month_for(requested)
+    wanted = (Date.strptime(requested.to_s, "%Y-%m") rescue nil)
+    wanted && wanted == late_month && late_approved?(wanted) ? wanted : month
+  end
 
   # Message shown on the form and returned as a validation error.
   def closed_message(claim_month)
     "Local mileage for #{claim_month.to_date.strftime('%b-%Y')} can no longer be filled or sent – " \
     "the last date was #{deadline_for(claim_month).strftime('%d/%m/%Y')} (cutoff day #{cutoff_day} of the next month). " \
-    "Please contact PD HR."
+    "Ask the COO for a late claim from Local Mileage History."
   end
 
   def already_claimed?

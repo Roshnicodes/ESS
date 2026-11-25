@@ -14,6 +14,7 @@ class ToursController < ApplicationController
                          .includes({ approval_steps: :approver }, activity_logs: :actor, tour_claim: :activity_logs)
                          .newest_first.page(params[:page]).per(20)
     @unread = unread_counts(@tours)
+    set_late_claim if @type == "local"
   end
 
   def new
@@ -152,5 +153,15 @@ class ToursController < ApplicationController
   def tour_params
     params.require(:tour).permit(:from_date, :to_date, :general_description,
       tour_visits_attributes: %i[id visit_date place travel_mode_id ticket_quota planned_activity position _destroy])
+  end
+
+  # Local mileage after the cutoff: the month that just closed, its claim and the COO request (if any)
+  def set_late_claim
+    period = LocalMileagePeriod.new(current_user)
+    @late_month = period.late_month
+    @late_tour  = current_user.tours.type_local.live.find_by(claim_month: @late_month)
+    claim = @late_tour&.tour_claim
+    @late_needed  = claim.nil? || claim.employee_editable?   # nothing sent yet for that month
+    @late_request = LateClaimRequest.where(user: current_user, claim_month: @late_month).newest_first.first
   end
 end
